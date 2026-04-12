@@ -15,7 +15,7 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 1.5.0 |
+| **Version** | 1.7.0 |
 | **Validated against** | `@fhevm/solidity` v0.9/v0.10 |
 | **Test result** | All templates compile and have passing tests |
 
@@ -459,6 +459,11 @@ contract ConfidentialLeaderboard is ZamaEthereumConfig, Ownable2Step {
 Uses the official OZ confidential token base contract. Preferred over Template 2 when you need
 ERC20 interface compatibility.
 
+**Includes:** mint (public + confidential), private transfer, confidential approve + transferFrom,
+burn with required ACL setup, and a ConfidentialWrapper for ERC20 ↔ ERC7984 bridging.
+
+### 7a — Core ERC7984 token with mint, transfer, approve, and burn
+
 ```solidity
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 pragma solidity ^0.8.24;
@@ -476,6 +481,8 @@ contract MyConfidentialToken is ZamaEthereumConfig, ERC7984, Ownable2Step {
         _mint(initialOwner, FHE.asEuint64(initialSupply));
     }
 
+    // ── Mint ──────────────────────────────────────────────────────────────────
+
     /// @notice Mint with publicly visible amount.
     function mint(address to, uint64 amount) external onlyOwner {
         _mint(to, FHE.asEuint64(amount));
@@ -490,9 +497,149 @@ contract MyConfidentialToken is ZamaEthereumConfig, ERC7984, Ownable2Step {
         _mint(to, FHE.fromExternal(encAmount, inputProof));
     }
 
-    // TODO: add burn, pause, or other token management functions as needed
+    // ── Transfer ──────────────────────────────────────────────────────────────
+
+    /// @notice Transfer a confidential amount. Amount is hidden from chain observers.
+    /// Caller must have sufficient encrypted balance; FHE.sub will saturate otherwise.
+    function transfer(
+        address to,
+        externalEuint64 encAmount,
+        bytes calldata inputProof
+    ) external override returns (bool) {
+        euint64 amount = FHE.fromExternal(encAmount, inputProof);
+        _transfer(msg.sender, to, amount);
+        return true;
+    }
+
+    // ── Approve + TransferFrom ────────────────────────────────────────────────
+
+    /// @notice Set a confidential allowance. The spender cannot read the amount
+    ///         until the owner explicitly allows it via ACL.
+    function confidentialApprove(
+        address spender,
+        externalEuint64 encAmount,
+        bytes calldata inputProof
+    ) external {
+        euint64 amount = FHE.fromExternal(encAmount, inputProof);
+        _approve(msg.sender, spender, amount);
+        // Grant spender and this contract read access to the allowance handle
+        FHE.allow(_allowances[msg.sender][spender], spender);
+        FHE.allowThis(_allowances[msg.sender][spender]);
+    }
+
+    /// @notice Spend an approved allowance. Spender supplies the encrypted spend amount.
+    function confidentialTransferFrom(
+        address from,
+        address to,
+        externalEuint64 encAmount,
+        bytes calldata inputProof
+    ) external returns (bool) {
+        euint64 amount = FHE.fromExternal(encAmount, inputProof);
+        _spendAllowance(from, msg.sender, amount);
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    // ── Burn ──────────────────────────────────────────────────────────────────
+
+    /// @notice Burn a confidential amount from the caller's own balance.
+    ///
+    /// CRITICAL: Before calling _burn, the contract must have allowThis on the
+    /// caller's balance handle AND the handle must be initialized (non-trivial).
+    /// This is satisfied automatically because every _mint / _transfer calls
+    /// FHE.allowThis internally via the ERC7984 base. Do NOT call _burn on an
+    /// address that has never received tokens — FHE.isInitialized will be false
+    /// and the base contract will revert.
+    function confidentialBurn(
+        externalEuint64 encAmount,
+        bytes calldata inputProof
+    ) external {
+        euint64 balance = _balances[msg.sender];
+        require(FHE.isInitialized(balance), "no balance to burn");
+        euint64 amount = FHE.fromExternal(encAmount, inputProof);
+        _burn(msg.sender, amount);
+    }
+
+    /// @notice Owner-initiated burn for compliance/admin (burns from target account).
+    function adminBurn(address from, uint64 amount) external onlyOwner {
+        euint64 balance = _balances[from];
+        require(FHE.isInitialized(balance), "target has no balance");
+        _burn(from, FHE.asEuint64(amount));
+    }
 }
 ```
+
+### 7b — ConfidentialWrapper (bridge between plain ERC20 and ERC7984)
+
+Use this when you want users to lock a standard ERC20 token and receive an encrypted equivalent.
+Wrap is public (amount visible). Unwrap reveals amount to the unwrapper only.
+
+```solidity
+// SPDX-License-Identifier: BSD-3-Clause-Clear
+pragma solidity ^0.8.24;
+
+import { FHE, euint64, externalEuint64 } from "@fhevm/solidity/lib/FHE.sol";
+import { ZamaEthereumConfig } from "@fhevm/solidity/config/ZamaConfig.sol";
+import { ERC7984 } from "@openzeppelin/confidential-contracts/token/ERC7984/ERC7984.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+/// @notice Wraps a standard ERC20 into an ERC7984 confidential token 1:1.
+///         Wrap: user deposits ERC20 → receives euint64 balance (amount visible on-chain).
+///         Unwrap: user burns euint64 → receives ERC20 (amount revealed at unwrap only).
+contract ConfidentialWrapper is ZamaEthereumConfig, ERC7984 {
+    using SafeERC20 for IERC20;
+
+    IERC20 public immutable underlying;
+
+    constructor(IERC20 _underlying)
+        ERC7984("Wrapped Token", "wTKN", "")  // TODO: set name, symbol
+    {
+        underlying = _underlying;
+    }
+
+    /// @notice Lock `amount` ERC20 tokens and mint the equivalent encrypted balance.
+    ///         Amount is publicly visible on-chain (event + calldata).
+    function wrap(uint64 amount) external {
+        underlying.safeTransferFrom(msg.sender, address(this), amount);
+        _mint(msg.sender, FHE.asEuint64(amount));
+    }
+
+    /// @notice Burn exactly `amount` encrypted tokens and release the underlying ERC20.
+    ///         Amount is revealed only to the caller (visible in their tx calldata).
+    function unwrap(uint64 amount) external {
+        euint64 balance = _balances[msg.sender];
+        require(FHE.isInitialized(balance), "no wrapped balance");
+        _burn(msg.sender, FHE.asEuint64(amount));
+        underlying.safeTransfer(msg.sender, amount);
+    }
+
+    /// @notice Burn a confidential amount (amount hidden from chain observers).
+    ///         Use when the unwrap amount itself must stay private.
+    function confidentialUnwrap(
+        externalEuint64 encAmount,
+        bytes calldata inputProof,
+        uint64 publicRelease      // exact ERC20 amount to release (must match encrypted value)
+    ) external {
+        euint64 balance = _balances[msg.sender];
+        require(FHE.isInitialized(balance), "no wrapped balance");
+        euint64 amount = FHE.fromExternal(encAmount, inputProof);
+        _burn(msg.sender, amount);
+        // NOTE: publicRelease is visible on chain — use only when the release amount
+        //       is already known publicly (e.g. fixed denomination unwraps).
+        underlying.safeTransfer(msg.sender, publicRelease);
+    }
+}
+```
+
+**Wrapping visibility rules:**
+
+| Operation | ERC20 side | Encrypted side |
+|---|---|---|
+| `wrap(amount)` | Amount visible (transfer event) | Encrypted balance minted |
+| `unwrap(amount)` | Amount visible (transfer event) | Encrypted balance burned |
+| `confidentialUnwrap(enc, proof, publicRelease)` | `publicRelease` visible | Encrypted burn hidden |
+| `transfer(to, enc, proof)` | No ERC20 movement | Encrypted transfer fully hidden |
 
 ---
 

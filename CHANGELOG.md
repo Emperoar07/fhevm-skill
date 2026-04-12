@@ -5,6 +5,30 @@ Format: `[version] — date — what changed and why`
 
 ---
 
+## [1.7.0] — 2026-04-12
+
+### Added — ERC7984 Complete Pattern Coverage (closes GAP-005)
+
+Expanded `SKILL.md §11b` and `SKILL-TEMPLATES.md Template 7` with full ERC7984 operational patterns:
+
+- **Private transfers** — `transfer(address, externalEuint64, bytes)` override with `_transfer` delegation
+- **Confidential allowances** — `confidentialApprove` + `confidentialTransferFrom` with required ACL grants
+  (`FHE.allow(_allowances[...]`, `FHE.allowThis(...)`) so the spender can actually read the handle
+- **Burn pattern with ACL requirement** — `confidentialBurn` with `FHE.isInitialized(balance)` guard;
+  critical red-box warning that `_burn` on an address with no prior balance history reverts because
+  `allowThis` is set by `_mint`/`_transfer`, never by zero-balance state
+- **Admin burn** — owner-controlled `adminBurn(address, uint64)` for compliance use cases
+- **ConfidentialWrapper (Template 7b)** — full ERC20 ↔ ERC7984 bridge with `wrap`, `unwrap`, and
+  `confidentialUnwrap` (hidden-amount unwrap), plus a visibility rules table showing what leaks at
+  each step
+- **KNOWN_GAPS.md** — GAP-005 marked resolved, added to Resolved Gaps table
+
+### Improved — SKILL-TEMPLATES.md
+- Template 7 split into 7a (core token) and 7b (wrapper) for clarity
+- Version bumped to 1.7.0
+
+---
+
 ## [1.6.0] — 2026-04-12
 
 ### Added — Upstream Ecosystem Monitoring

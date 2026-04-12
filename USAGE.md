@@ -211,7 +211,7 @@ pnpm compile
 pnpm test
 ```
 
-A correctly generated contract produces `32 passing, 1 pending` (the Sepolia test is always pending locally).
+A correctly generated contract produces `32 passing, 4 pending` (the Sepolia tests are always pending locally — they require a live network connection).
 
 If a test fails with `User ... is not authorized to user decrypt handle`, the contract is missing an FHE.allow call. Ask the agent:
 
@@ -219,6 +219,29 @@ If a test fails with `User ... is not authorized to user decrypt handle`, the co
 Read SKILL.md Section 6. My test is failing with this authorization error: [paste error].
 Fix the missing ACL grant in the contract.
 ```
+
+### Running against Sepolia
+
+The skill has been validated end-to-end on Sepolia. To run the live tests yourself:
+
+```bash
+cd packages/hardhat
+npx hardhat vars set MNEMONIC
+npx hardhat vars set INFURA_API_KEY
+npx hardhat deploy --network sepolia
+npx hardhat test test/FHECounterSepolia.ts --network sepolia
+npx hardhat deploy --network sepolia --tags ConfidentialToken
+npx hardhat test test/ConfidentialTokenSepolia.ts --network sepolia
+```
+
+Validated patterns on Sepolia:
+- `fhevm.createEncryptedInput` with real ZK proof generation
+- `FHE.fromExternal` proof verification on-chain
+- `FHE.add`, `FHE.sub` on live FHEVM coprocessor
+- `FHE.allowThis` and `FHE.allow` ACL enforcement
+- `fhevm.userDecryptEuint` against the live Zama relayer
+- Confidential transfer (hidden amount, two balances updated atomically)
+- Confidential burn with `FHE.isInitialized` guard
 
 ---
 

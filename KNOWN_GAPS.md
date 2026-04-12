@@ -49,12 +49,13 @@ for large values that need arithmetic.
 ---
 
 ### GAP-005 — ERC7984 `_burn` ACL requirements
-**Status:** Undocumented  
-**Description:** The skill covers `_mint` ACL patterns for ERC7984 but does not document what ACL
+**Status:** Resolved in v1.7.0  
+**Description:** The skill covers `_mint` ACL patterns for ERC7984 but did not document what ACL
 grants `_burn` requires on the caller's balance handle.  
-**Safe fallback:** Before calling `_burn`, ensure `FHE.isSenderAllowed(handle)` passes and the
-contract has `allowThis` on the balance.  
-**Tracked since:** 2026-04-12
+**Resolution:** SKILL.md §11b and SKILL-TEMPLATES.md Template 7 now document the full burn pattern:
+`FHE.isInitialized(balance)` guard required before `_burn`; the ERC7984 base satisfies `allowThis`
+automatically via `_mint`/`_transfer`, but callers with no balance history will fail.  
+**Fixed in:** v1.7.0 — 2026-04-12
 
 ---
 
@@ -62,6 +63,7 @@ contract has `allowThis` on the balance.
 
 | Gap ID | Description | Fixed in version |
 |---|---|---|
+| GAP-005 | ERC7984 `_burn` ACL requirements and `FHE.isInitialized` guard | v1.7.0 |
 | — | `publicDecrypt` was documented as a standalone import | v1.3.0 |
 | — | Owner ACL not mentioned for admin-readable handles | v1.3.0 |
 | — | `euint8` import rule for intermediate types | v1.3.0 |

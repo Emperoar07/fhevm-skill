@@ -8,7 +8,7 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 1.6.0 |
+| **Version** | 1.7.0 |
 | **Last updated** | 2026-04-12 |
 | **Last tested against** | `@fhevm/solidity` v0.9/v0.10, `@zama-fhe/relayer-sdk` v0.3, `@fhevm/hardhat-plugin` v0.4.2 |
 | **Package versions** | [VERSIONS.md](VERSIONS.md) — auto-updated weekly by CI |
@@ -1341,16 +1341,158 @@ contract ConfidentialUSDT is ZamaEthereumConfig, ERC7984, Ownable2Step {
 | Events | Amount visible | Amount hidden |
 | Overflow | SafeMath / reverts | Wraps silently (FHE arithmetic) |
 
-### Wrapping ERC20 → ERC7984 (Confidential Wrapper)
+### Private Transfers and Encrypted Allowances
 
-The Zama Protocol provides an official wrapper registry. To create a confidential wrapper for an existing ERC20:
+ERC7984 transfers are confidential by default. The transfer amount is passed as `externalEuint64` so the amount is never visible on-chain. The base contract handles the ACL re-grants internally.
 
 ```solidity
-import { ERC7984ERC20WrapperMock } from "@openzeppelin/confidential-contracts";
+// User calls transfer — amount is encrypted, invisible on-chain
+function transfer(
+    address to,
+    externalEuint64 encAmount,
+    bytes calldata inputProof
+) external override returns (bool) {
+    euint64 amount = FHE.fromExternal(encAmount, inputProof);
+    // ERC7984 base _transfer handles silent clamp + ACL re-grants internally
+    _transfer(msg.sender, to, amount);
+    return true;
+}
 
-// Deploy wrapper — users deposit ERC20, receive encrypted ERC7984 balance
-// Withdrawals re-expose plaintext amounts
+// Encrypted allowance — approve a spender for a confidential amount
+function confidentialApprove(
+    address spender,
+    externalEuint64 encAmount,
+    bytes calldata inputProof
+) external {
+    euint64 amount = FHE.fromExternal(encAmount, inputProof);
+    _approve(msg.sender, spender, amount);
+    // Grant spender ACL access to the allowance handle
+    FHE.allow(_allowances[msg.sender][spender], spender);
+    FHE.allowThis(_allowances[msg.sender][spender]);
+}
+
+// Encrypted transferFrom — spender uses their allowance
+function confidentialTransferFrom(
+    address from,
+    address to,
+    externalEuint64 encAmount,
+    bytes calldata inputProof
+) external returns (bool) {
+    euint64 amount = FHE.fromExternal(encAmount, inputProof);
+    _spendAllowance(from, msg.sender, amount);
+    _transfer(from, to, amount);
+    return true;
+}
 ```
+
+> **Note:** The ERC7984 base contract internally uses `FHE.select` for silent clamping — transfers that exceed balance silently transfer 0, they do not revert. This is the same pattern as the manual ConfidentialToken example.
+
+### Burn Pattern and ACL
+
+Burning tokens removes them from circulation. The `_burn` function in ERC7984 requires ACL access to the holder's balance handle.
+
+```solidity
+/// @notice Burn tokens from the caller's balance (public amount, owner only)
+function burn(address from, uint64 amount) external onlyOwner {
+    // _burn is provided by ERC7984 base — handles ACL and balance update internally
+    _burn(from, FHE.asEuint64(amount));
+}
+
+/// @notice Burn a confidential amount from caller's own balance
+function confidentialBurn(externalEuint64 encAmount, bytes calldata inputProof) external {
+    euint64 amount = FHE.fromExternal(encAmount, inputProof);
+    // Caller must have ACL access to their own balance (granted at mint/transfer time)
+    _burn(msg.sender, amount);
+}
+```
+
+> **🔴 CRITICAL — Burn ACL requirement:**
+> `_burn` reads the holder's encrypted balance internally. For this to succeed, the contract
+> must have been granted `FHE.allowThis(balance)` when the balance was last written.
+> If `allowThis` was ever skipped after a transfer, `_burn` will fail silently (balance becomes 0 handle).
+> Always verify `FHE.isInitialized(_balances[from])` before calling `_burn`.
+
+### Wrapping ERC20 → ERC7984 (Confidential Wrapper)
+
+Wrapping lets users deposit a standard ERC20 and receive an encrypted ERC7984 balance. Unwrapping burns the confidential balance and returns the plaintext ERC20.
+
+```solidity
+// SPDX-License-Identifier: BSD-3-Clause-Clear
+pragma solidity ^0.8.24;
+
+import { FHE, euint64, externalEuint64 } from "@fhevm/solidity/lib/FHE.sol";
+import { ZamaEthereumConfig } from "@fhevm/solidity/config/ZamaConfig.sol";
+import { ERC7984 } from "@openzeppelin/confidential-contracts/token/ERC7984/ERC7984.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+/// @title ConfidentialWrapper
+/// @notice Wrap any ERC20 into an ERC7984 confidential token.
+///         Users deposit plaintext ERC20 → receive encrypted balance.
+///         Users unwrap encrypted balance → receive plaintext ERC20.
+contract ConfidentialWrapper is ZamaEthereumConfig, ERC7984 {
+    using SafeERC20 for IERC20;
+
+    IERC20 public immutable underlying; // the ERC20 being wrapped
+
+    event Wrapped(address indexed user, uint64 amount);
+    event Unwrapped(address indexed user, uint64 amount);
+
+    constructor(address _underlying)
+        ERC7984("Confidential Wrapped Token", "cTOKEN", "")
+    {
+        underlying = IERC20(_underlying);
+    }
+
+    /// @notice Deposit ERC20 and receive an encrypted balance.
+    ///         Amount is publicly visible (pulled from ERC20 transfer).
+    function wrap(uint64 amount) external {
+        // Pull plaintext ERC20 from user
+        underlying.safeTransferFrom(msg.sender, address(this), amount);
+
+        // Mint encrypted balance — trivial encrypt (amount is already public from the transfer)
+        _mint(msg.sender, FHE.asEuint64(amount));
+
+        emit Wrapped(msg.sender, amount);
+    }
+
+    /// @notice Burn encrypted balance and withdraw plaintext ERC20.
+    ///         The withdrawal amount is public — visible in the event and ERC20 transfer.
+    ///         Use this only when you are ready to reveal the amount.
+    function unwrap(uint64 amount) external {
+        // Burn encrypted balance — amount becomes public at this point
+        _burn(msg.sender, FHE.asEuint64(amount));
+
+        // Return plaintext ERC20 to user
+        underlying.safeTransfer(msg.sender, amount);
+
+        emit Unwrapped(msg.sender, amount);
+    }
+
+    /// @notice Burn encrypted balance with a confidential amount.
+    ///         Amount stays hidden until the underlying ERC20 transfer reveals it.
+    function confidentialUnwrap(
+        externalEuint64 encAmount,
+        bytes calldata inputProof,
+        uint64 publicAmount  // must match encAmount — used for the ERC20 transfer
+    ) external {
+        euint64 amount = FHE.fromExternal(encAmount, inputProof);
+        _burn(msg.sender, amount);
+        underlying.safeTransfer(msg.sender, publicAmount);
+        emit Unwrapped(msg.sender, publicAmount);
+    }
+}
+```
+
+**Wrapping rules:**
+
+| Direction | Visibility | Pattern |
+|---|---|---|
+| ERC20 → ERC7984 (wrap) | Amount is public (ERC20 transfer is visible) | `_mint(user, FHE.asEuint64(amount))` — trivial encrypt is fine since amount is already on-chain |
+| ERC7984 → ERC20 (unwrap) | Amount becomes public at unwrap time | `_burn` + ERC20 `safeTransfer` |
+| Confidential transfer (within ERC7984) | Amount stays hidden | `_transfer(from, to, encAmount)` — never leaves ERC7984 |
+
+> **Note:** There is no way to unwrap without revealing the amount at the ERC20 level. The confidentiality of ERC7984 applies only to transfers that stay within the ERC7984 system. Once a user unwraps, the amount is visible on-chain.
 
 ---
 

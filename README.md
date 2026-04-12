@@ -35,7 +35,7 @@ Supporting files:
 |---|---|
 | [USAGE.md](USAGE.md) | Step-by-step guide for using the skill with any AI agent. Example prompts, agent-specific instructions, and what mistakes the skill prevents. |
 | [VERSIONS.md](VERSIONS.md) | Tracks exact package versions the skill was validated against. Updated weekly by CI. |
-| [CHANGELOG.md](CHANGELOG.md) | Full version history from v1.1.0 to v1.6.0. |
+| [CHANGELOG.md](CHANGELOG.md) | Full version history from v1.1.0 to v1.7.0. |
 | [KNOWN_GAPS.md](KNOWN_GAPS.md) | Open gaps and patterns still under validation. |
 | [FEEDBACK.md](FEEDBACK.md) | How to report a gap or suggest an improvement. |
 
@@ -43,46 +43,77 @@ Supporting files:
 
 ## Test Results
 
+### Local mock mode (32/32)
+
 ```
   ConfidentialLeaderboard    6 passing
   ConfidentialSalary        10 passing
   ConfidentialVoting         7 passing
   FHECounter                 2 passing
   SealedBidAuction           5 passing
-  FHECounterSepolia          1 pending  (Sepolia only)
+  FHECounterSepolia          1 pending  (Sepolia only — skipped locally)
+  ConfidentialTokenSepolia   3 pending  (Sepolia only — skipped locally)
 
   32 passing
-   1 pending
+   4 pending
 ```
 
-All contracts compile and all 32 tests pass in local mock mode. The pending test requires a live Sepolia connection and is intentionally skipped locally.
+### Live Sepolia testnet (4/4)
+
+```
+  FHECounterSepolia          1 passing  (81s)
+  ConfidentialTokenSepolia   3 passing  (2m)
+    mint then decrypt balance
+    confidential transfer then decrypt both balances
+    confidential burn reduces balance
+```
+
+All core FHEVM patterns validated end-to-end on Sepolia against the live Zama relayer:
+encrypted input generation, FHE operations on-chain, ACL enforcement, user decryption via relayer, and confidential burn.
 
 ---
 
 ## Contracts
 
-Five contracts covering the full range of FHEVM patterns:
+Six contracts covering the full range of FHEVM patterns:
 
-| Contract | Patterns demonstrated |
-|---|---|
-| `ConfidentialVoting` | Encrypted bool inputs, FHE.select for vote tallying, owner reveals after deadline |
-| `SealedBidAuction` | Encrypted uint64 bids, FHE.select for highest bid tracking, eaddress for winner |
-| `ConfidentialLeaderboard` | Personal best with FHE.isInitialized, global top score, multi-user aggregation |
-| `ConfidentialSalary` | Per-user encrypted values, encrypted running total, owner-only aggregate read |
-| `FHECounter` | Base template from Zama, increment and decrement encrypted counter |
+| Contract | Patterns demonstrated | Sepolia validated |
+|---|---|---|
+| `ConfidentialToken` | Encrypted balances, confidential transfer, approve, burn with ACL | Yes |
+| `ConfidentialVoting` | Encrypted bool inputs, FHE.select for vote tallying, owner reveals after deadline | No |
+| `SealedBidAuction` | Encrypted uint64 bids, FHE.select for highest bid tracking, eaddress for winner | No |
+| `ConfidentialLeaderboard` | Personal best with FHE.isInitialized, global top score, multi-user aggregation | No |
+| `ConfidentialSalary` | Per-user encrypted values, encrypted running total, owner-only aggregate read | No |
+| `FHECounter` | Base template from Zama, increment and decrement encrypted counter | Yes |
 
 ---
 
 ## How to Run Tests
 
+### Local mock mode (no wallet needed)
+
 ```bash
-git clone https://github.com/Emperoar07/fhevm-skill-demo
-cd fhevm-skill-demo
+git clone https://github.com/Emperoar07/fhevm-skill
+cd fhevm-skill
 pnpm install
 pnpm test
 ```
 
-Expected output: `32 passing, 1 pending`
+Expected output: `32 passing, 4 pending`
+
+### Live Sepolia testnet
+
+```bash
+cd packages/hardhat
+npx hardhat vars set MNEMONIC       # your 12-word seed phrase
+npx hardhat vars set INFURA_API_KEY # your Infura project key
+npx hardhat deploy --network sepolia
+npx hardhat test test/FHECounterSepolia.ts --network sepolia
+npx hardhat deploy --network sepolia --tags ConfidentialToken
+npx hardhat test test/ConfidentialTokenSepolia.ts --network sepolia
+```
+
+Requires a wallet funded with Sepolia ETH (get from any Sepolia faucet).
 
 ---
 
@@ -118,20 +149,20 @@ This opens a pre-filled GitHub Issue in your browser. The issue is automatically
 ## Project Structure
 
 ```
-fhevm-skill-demo/
-  SKILL.md                      Master skill overview
+fhevm-skill/
+  SKILL.md                      Master skill overview (v1.7.0)
   SKILL-REFERENCE.md            API reference
-  SKILL-TEMPLATES.md            Contract templates
+  SKILL-TEMPLATES.md            Contract templates (7 templates)
   SKILL-TESTING.md              Test guide
   USAGE.md                      How to use the skill with any agent
-  VERSIONS.md                   Package version tracker
-  CHANGELOG.md                  Version history
-  KNOWN_GAPS.md                 Open gaps
+  VERSIONS.md                   Package version tracker (auto-updated weekly)
+  CHANGELOG.md                  Version history (v1.1.0 to v1.7.0)
+  KNOWN_GAPS.md                 Open gaps and resolved gaps
   FEEDBACK.md                   Gap reporting guide
   packages/
     hardhat/
-      contracts/                Five confidential contracts
-      test/                     Six test files (32 tests)
+      contracts/                Six confidential contracts
+      test/                     Eight test files (32 mock + 4 Sepolia)
       deploy/                   Hardhat deploy scripts
     nextjs/                     Scaffold-ETH frontend
     fhevm-sdk/                  FHEVM SDK package
@@ -143,6 +174,7 @@ fhevm-skill-demo/
       skill-evolve.yml          Community issue handler
       skill-watch-deps.yml      Weekly npm version watcher
       skill-watch-docs.yml      Weekly docs change detector
+    doc-snapshots/              Hashes of watched Zama docs pages
     ISSUE_TEMPLATE/
       skill-gap.yml             Structured gap report template
 ```
