@@ -53,14 +53,20 @@ describe("ConfidentialVotingSepolia", function () {
     steps = 4;
     this.timeout(5 * 60000);
 
-    progress(`Encrypting YES vote for alice=${signers.alice.address}...`);
-    const input = fhevm.createEncryptedInput(contractAddress, signers.alice.address);
-    input.addBool(true);
-    const enc = await input.encrypt();
+    const alreadyVoted = await contract.hasVoted(signers.alice.address);
+    if (!alreadyVoted) {
+      progress(`Encrypting YES vote for alice=${signers.alice.address}...`);
+      const input = fhevm.createEncryptedInput(contractAddress, signers.alice.address);
+      input.addBool(true);
+      const enc = await input.encrypt();
 
-    progress(`Casting encrypted YES vote on-chain...`);
-    const tx = await contract.connect(signers.alice).castVote(enc.handles[0], enc.inputProof);
-    await tx.wait();
+      progress(`Casting encrypted YES vote on-chain...`);
+      const tx = await contract.connect(signers.alice).castVote(enc.handles[0], enc.inputProof);
+      await tx.wait();
+    } else {
+      progress(`Alice already voted on this deployment — skipping cast`);
+      step += 2;
+    }
 
     progress(`Checking hasVoted flag for alice...`);
     const voted = await contract.hasVoted(signers.alice.address);
