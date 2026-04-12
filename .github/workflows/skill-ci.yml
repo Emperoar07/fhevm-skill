@@ -102,8 +102,8 @@ jobs:
           PASSING=${{ steps.parse.outputs.passing }}
           PENDING=${{ steps.parse.outputs.pending }}
 
-          # Extract current version from SKILL.md
-          VERSION=$(grep '^\| \*\*Version\*\*' SKILL.md | grep -oP '\d+\.\d+\.\d+' || echo "unknown")
+          # Extract current version from SKILL.md (first match only)
+          VERSION=$(grep '^\| \*\*Version\*\*' SKILL.md | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "unknown")
 
           # Build the entry as a file to avoid sed special-character issues
           cat > /tmp/ci_entry.md << EOF

@@ -1,19 +1,4 @@
 # SKILL.md Changelog
-## [CI-VALIDATED] — 2026-04-12
-
-**Version:** 1.7.0
-0.4.2
-0.8.24
-0.8.24
-0.8.24
-0.8.24
-0.8.24
-**Result:** 32 passing, 7 pending, 0 failing
-**Commit:** 90d01fee178db98f0a2e7587832a7f8b1f14b043
-**Triggered by:** push to main
-
----
-
 
 All notable changes to the FHEVM Agent Skill are documented here.
 Format: `[version] — date — what changed and why`
