@@ -102,14 +102,38 @@ jobs:
           PASSING=${{ steps.parse.outputs.passing }}
           PENDING=${{ steps.parse.outputs.pending }}
 
-          # Extract current version from SKILL.md (workflow runs from repo root)
+          # Extract current version from SKILL.md
           VERSION=$(grep '^\| \*\*Version\*\*' SKILL.md | grep -oP '\d+\.\d+\.\d+' || echo "unknown")
 
-          # Prepend new entry to CHANGELOG.md
-          ENTRY="## [CI-VALIDATED] — ${DATE}\n\n**Version:** ${VERSION}\n**Result:** ${PASSING} passing, ${PENDING} pending, 0 failing\n**Commit:** ${{ github.sha }}\n**Triggered by:** push to main\n\n---\n\n"
+          # Build the entry as a file to avoid sed special-character issues
+          cat > /tmp/ci_entry.md << EOF
+          ## [CI-VALIDATED] — ${DATE}
 
-          # Insert after the first line (title)
-          sed -i "3s/^/${ENTRY}/" CHANGELOG.md
+          **Version:** ${VERSION}
+          **Result:** ${PASSING} passing, ${PENDING} pending, 0 failing
+          **Commit:** ${{ github.sha }}
+          **Triggered by:** push to main
+
+          ---
+
+          EOF
+
+          # Prepend entry after line 1 (the title) using Python for safe multiline insert
+          python3 - << 'PYEOF'
+          with open('/tmp/ci_entry.md') as f:
+              entry = f.read()
+          with open('CHANGELOG.md') as f:
+              lines = f.readlines()
+          # Insert after first non-empty line (the title)
+          insert_at = 1
+          for i, line in enumerate(lines):
+              if line.strip():
+                  insert_at = i + 1
+                  break
+          lines.insert(insert_at, entry)
+          with open('CHANGELOG.md', 'w') as f:
+              f.writelines(lines)
+          PYEOF
 
           git config user.name "skill-bot"
           git config user.email "skill-bot@users.noreply.github.com"
