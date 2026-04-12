@@ -1,190 +1,191 @@
-# FHEVM React Template
+# FHEVM Agent Skill
 
-A minimal React frontend template for building FHEVM-enabled decentralized applications (dApps). This template provides a simple development interface for interacting with FHEVM smart contracts, specifically the `FHECounter.sol` contract.
+**Zama Developer Program Season 2 Bounty Submission**
 
-## 🚀 What is FHEVM?
+A production-ready AI coding skill that enables agents like Claude Code, Cursor, and Windsurf to accurately write, test, and deploy confidential smart contracts using the Zama Protocol (FHEVM).
 
-FHEVM (Fully Homomorphic Encryption Virtual Machine) enables computation on encrypted data directly on Ethereum. This template demonstrates how to build dApps that can perform computations while keeping data private.
+Point any AI agent at the skill files and it can go from a plain English prompt to a working, tested, deployable FHEVM contract without guessing at APIs or making common mistakes.
 
-## ✨ Features
+---
 
-- **🔐 FHEVM Integration**: Built-in support for fully homomorphic encryption
-- **⚛️ React + Next.js**: Modern, performant frontend framework
-- **🎨 Tailwind CSS**: Utility-first styling for rapid UI development
-- **🔗 RainbowKit**: Seamless wallet connection and management
-- **🌐 Multi-Network Support**: Works on both Sepolia testnet and local Hardhat node
-- **📦 Monorepo Structure**: Organized packages for SDK, contracts, and frontend
+## What This Is
 
-## 🧰 Scripts overview
+FHEVM lets smart contracts compute over encrypted data. The API is powerful but unfamiliar to most agents: encrypted types, ACL grants on every handle, no plaintext conditionals, async decryption, HCU limits. Without guidance, agents consistently produce code that compiles but fails tests, or fails at deployment.
 
-| Script                   | What it does                                                   |
-| ------------------------ | -------------------------------------------------------------- |
-| `pnpm dev`              | Starts the frontend dev server for the React template.        |
-| `pnpm test`             | Runs the frontend tests in watch mode.                        |
-| `pnpm lint`             | Lints the project using the configured ESLint rules.          |
-| `pnpm build`            | Builds the production bundle for deployment.                  |
-| `pnpm preview`          | Serves the built app locally to verify the production build.  |
+This skill solves that. It is a set of structured reference files an agent loads before generating any FHEVM code. The result is correct code on the first try.
 
-## 📋 Prerequinextjss
+**Cold start proof:** The `ConfidentialSalary` contract was built by giving an agent only this prompt and pointing it at `SKILL.md`. All 10 tests passed on the first attempt with no corrections.
 
-Before you begin, ensure you have:
+---
 
-- **Node.js** (v18 or higher)
-- **pnpm** package manager
-- **MetaMask** browser extension
-- **Git** for cloning the repository
+## Skill File System
 
-## 🛠️ Quick Start
+The skill is split into four files. An agent loads the ones relevant to its task.
 
-### 1. Clone and Setup
+| File | Purpose |
+|---|---|
+| [SKILL.md](SKILL.md) | Master overview. Mental model, full workflow, all patterns, complete examples. Read this first. |
+| [SKILL-REFERENCE.md](SKILL-REFERENCE.md) | Complete API reference. Every encrypted type, FHE operation, ACL function, HCU cost, and deployment address. |
+| [SKILL-TEMPLATES.md](SKILL-TEMPLATES.md) | Seven copy-paste contract templates with TODO markers. Token, Voting, Auction, Survey, Leaderboard, ERC7984, Minimal. |
+| [SKILL-TESTING.md](SKILL-TESTING.md) | Hardhat test patterns, encrypted input helpers, decryption assertions, debug guide, CI setup. |
+
+Supporting files:
+
+| File | Purpose |
+|---|---|
+| [VERSIONS.md](VERSIONS.md) | Tracks exact package versions the skill was validated against. Updated weekly by CI. |
+| [CHANGELOG.md](CHANGELOG.md) | Full version history from v1.1.0 to v1.6.0. |
+| [KNOWN_GAPS.md](KNOWN_GAPS.md) | Open gaps and patterns still under validation. |
+| [FEEDBACK.md](FEEDBACK.md) | How to report a gap or suggest an improvement. |
+
+---
+
+## Test Results
+
+```
+  ConfidentialLeaderboard    6 passing
+  ConfidentialSalary        10 passing
+  ConfidentialVoting         7 passing
+  FHECounter                 2 passing
+  SealedBidAuction           5 passing
+  FHECounterSepolia          1 pending  (Sepolia only)
+
+  32 passing
+   1 pending
+```
+
+All contracts compile and all 32 tests pass in local mock mode. The pending test requires a live Sepolia connection and is intentionally skipped locally.
+
+---
+
+## Contracts
+
+Five contracts covering the full range of FHEVM patterns:
+
+| Contract | Patterns demonstrated |
+|---|---|
+| `ConfidentialVoting` | Encrypted bool inputs, FHE.select for vote tallying, owner reveals after deadline |
+| `SealedBidAuction` | Encrypted uint64 bids, FHE.select for highest bid tracking, eaddress for winner |
+| `ConfidentialLeaderboard` | Personal best with FHE.isInitialized, global top score, multi-user aggregation |
+| `ConfidentialSalary` | Per-user encrypted values, encrypted running total, owner-only aggregate read |
+| `FHECounter` | Base template from Zama, increment and decrement encrypted counter |
+
+---
+
+## How to Run Tests
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd fhevm-react-template
-
-# Initialize submodules (includes fhevm-hardhat-template)
-git submodule update --init --recursive
-
-# Install dependencies
+git clone https://github.com/Emperoar07/fhevm-skill-demo
+cd fhevm-skill-demo
 pnpm install
+pnpm test
 ```
 
-### 2. Environment Configuration
+Expected output: `32 passing, 1 pending`
 
-Set up your Hardhat environment variables by following the [FHEVM documentation](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup#set-up-the-hardhat-configuration-variables-optional):
+---
 
-- `MNEMONIC`: Your wallet mnemonic phrase
-- `INFURA_API_KEY`: Your Infura API key for Sepolia
+## Auto-Evolve System
 
-### 3. Start Development Environment
+The skill evolves automatically through three channels so it never goes stale.
 
-**Option A: Local Development (Recommended for testing)**
+**When an agent produces wrong code:**
+A developer runs `pnpm report-gap` or files a GitHub Issue with the `skill-gap` label. The `skill-evolve.yml` workflow auto-logs it to `KNOWN_GAPS.md` and notifies maintainers.
+
+**When Zama ships a new package version (every Monday):**
+The `skill-watch-deps.yml` workflow checks npm for new versions of `@fhevm/solidity`, `@zama-fhe/relayer-sdk`, `@fhevm/hardhat-plugin`, and `@openzeppelin/confidential-contracts`. On any change it opens a `skill-gap` issue with links to the changelogs and updates `VERSIONS.md`.
+
+**When Zama updates their documentation (every Thursday):**
+The `skill-watch-docs.yml` workflow fetches five Zama docs pages, hashes the content, and compares against stored snapshots. On any change it opens a `skill-gap` issue naming exactly which page changed and which skill file needs review.
+
+All four GitHub Actions workflows are in [.github/workflows/](.github/workflows/).
+
+---
+
+## Reporting a Gap
+
+If the skill guides an agent to produce wrong or incomplete code, report it:
 
 ```bash
-# Terminal 1: Start local Hardhat node
-pnpm chain
-# RPC URL: http://127.0.0.1:8545 | Chain ID: 31337
-
-# Terminal 2: Deploy contracts to localhost
-pnpm deploy:localhost
-
-# Terminal 3: Start the frontend
-pnpm start
+pnpm report-gap
 ```
 
-**Option B: Sepolia Testnet**
+This opens a pre-filled GitHub Issue in your browser. The issue is automatically logged to `KNOWN_GAPS.md` and a maintainer is notified. See [FEEDBACK.md](FEEDBACK.md) for the manual process.
 
-```bash
-# Deploy to Sepolia testnet
-pnpm deploy:sepolia
+---
 
-# Start the frontend
-pnpm start
-```
-
-### 4. Connect MetaMask
-
-1. Open [http://localhost:3000](http://localhost:3000) in your browser
-2. Click "Connect Wallet" and select MetaMask
-3. If using localhost, add the Hardhat network to MetaMask:
-   - **Network Name**: Hardhat Local
-   - **RPC URL**: `http://127.0.0.1:8545`
-   - **Chain ID**: `31337`
-   - **Currency Symbol**: `ETH`
-
-### ⚠️ Common pitfalls
-
-- If contracts are not found, make sure submodules are initialized with  
-  `git submodule update --init --recursive` and that you have run `pnpm install`.
-- If the frontend shows network or RPC errors, double-check that `MNEMONIC`
-  and `INFURA_API_KEY` are correctly set in your Hardhat environment.
-- If the app builds but cannot read contract state, verify that
-  `NEXT_PUBLIC_ALCHEMY_API_KEY` and `packages/nextjs/contracts/deployedContracts.ts`
-  point to the right network and deployed addresses.
-
-### ⚠️ Sepolia Production note
-
-- In production, `NEXT_PUBLIC_ALCHEMY_API_KEY` must be set (see `packages/nextjs/scaffold.config.ts`). The app throws if missing.
-- Ensure `packages/nextjs/contracts/deployedContracts.ts` points to your live contract addresses.
-- Optional: set `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` for better WalletConnect reliability.
-- Optional: add per-chain RPCs via `rpcOverrides` in `packages/nextjs/scaffold.config.ts`.
-
-## 🔧 Troubleshooting
-
-### Common MetaMask + Hardhat Issues
-
-When developing with MetaMask and Hardhat, you may encounter these common issues:
-
-#### ❌ Nonce Mismatch Error
-
-**Problem**: MetaMask tracks transaction nonces, but when you restart Hardhat, the node resets while MetaMask doesn't update its tracking.
-
-**Solution**:
-1. Open MetaMask extension
-2. Select the Hardhat network
-3. Go to **Settings** → **Advanced**
-4. Click **"Clear Activity Tab"** (red button)
-5. This resets MetaMask's nonce tracking
-
-#### ❌ Cached View Function Results
-
-**Problem**: MetaMask caches smart contract view function results. After restarting Hardhat, you may see outdated data.
-
-**Solution**:
-1. **Restart your entire browser** (not just refresh the page)
-2. MetaMask's cache is stored in extension memory and requires a full browser restart to clear
-
-> 💡 **Pro Tip**: Always restart your browser after restarting Hardhat to avoid cache issues.
-
-For more details, see the [MetaMask development guide](https://docs.metamask.io/wallet/how-to/run-devnet/).
-
-## 📁 Project Structure
-
-This template uses a monorepo structure with three main packages:
+## Project Structure
 
 ```
-fhevm-react-template/
-├── packages/
-│   ├── fhevm-hardhat-template/    # Smart contracts & deployment
-│   ├── fhevm-sdk/                 # FHEVM SDK package
-│   └── nextjs/                      # React frontend application
-└── scripts/                       # Build and deployment scripts
+fhevm-skill-demo/
+  SKILL.md                      Master skill overview
+  SKILL-REFERENCE.md            API reference
+  SKILL-TEMPLATES.md            Contract templates
+  SKILL-TESTING.md              Test guide
+  VERSIONS.md                   Package version tracker
+  CHANGELOG.md                  Version history
+  KNOWN_GAPS.md                 Open gaps
+  FEEDBACK.md                   Gap reporting guide
+  packages/
+    hardhat/
+      contracts/                Five confidential contracts
+      test/                     Six test files (32 tests)
+      deploy/                   Hardhat deploy scripts
+    nextjs/                     Scaffold-ETH frontend
+    fhevm-sdk/                  FHEVM SDK package
+  scripts/
+    report-gap.js               CLI gap reporter
+  .github/
+    workflows/
+      skill-ci.yml              Test runner and gap logger
+      skill-evolve.yml          Community issue handler
+      skill-watch-deps.yml      Weekly npm version watcher
+      skill-watch-docs.yml      Weekly docs change detector
+    ISSUE_TEMPLATE/
+      skill-gap.yml             Structured gap report template
 ```
 
-### Key Components
+---
 
-#### 🔗 FHEVM Integration (`packages/nextjs/hooks/fhecounter-example/`)
-- **`useFHECounterWagmi.tsx`**: Example hook demonstrating FHEVM contract interaction
-- Essential hooks for FHEVM-enabled smart contract communication
-- Easily copyable to any FHEVM + React project
+## How to Use the Skill
 
-#### 🎣 Wallet Management (`packages/nextjs/hooks/helper/`)
-- MetaMask wallet provider hooks
-- Compatible with EIP-6963 standard
-- Easily adaptable for other wallet providers
+Open any AI coding agent and give it a prompt like:
 
-#### 🔧 Flexibility
-- Replace `ethers.js` with `Wagmi` or other React-friendly libraries
-- Modular architecture for easy customization
-- Support for multiple wallet providers
+```
+Read SKILL.md and SKILL-REFERENCE.md from this repo, then build me a
+confidential prediction market contract on Ethereum where users submit
+encrypted predictions and the owner reveals the outcome after a deadline.
+Include tests.
+```
 
-## 📚 Additional Resources
+The agent will produce a working contract with correct ACL grants, proper FHE.select usage, and a full test suite. No corrections needed.
 
-### Official Documentation
-- [FHEVM Documentation](https://docs.zama.ai/protocol/solidity-guides/) - Complete FHEVM guide
-- [FHEVM Hardhat Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat) - Hardhat integration
-- [Relayer SDK Documentation](https://docs.zama.ai/protocol/relayer-sdk-guides/) - SDK reference
-- [Environment Setup](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup#set-up-the-hardhat-configuration-variables-optional) - MNEMONIC & API keys
+For faster agent loading on specific tasks:
 
-### Development Tools
-- [MetaMask + Hardhat Setup](https://docs.metamask.io/wallet/how-to/run-devnet/) - Local development
-- [React Documentation](https://reactjs.org/) - React framework guide
+- Writing a new contract from scratch: load `SKILL.md` and `SKILL-TEMPLATES.md`
+- Debugging a contract: load `SKILL.md` and `SKILL-REFERENCE.md`
+- Writing tests: load `SKILL-TESTING.md`
+- All of the above: load all four files
 
-### Community & Support
-- [FHEVM Discord](https://discord.com/invite/zama) - Community support
-- [GitHub Issues](https://github.com/zama-ai/fhevm-react-template/issues) - Bug reports & feature requests
+---
 
-## 📄 License
+## Requirements
 
-This project is licensed under the **BSD-3-Clause-Clear License**. See the [LICENSE](LICENSE) file for details.
+- Node.js v20 or higher
+- pnpm v8 or higher
+- Git
+
+---
+
+## License
+
+BSD-3-Clause-Clear. See [LICENSE](LICENSE).
+
+---
+
+## Resources
+
+- Zama Protocol docs: https://docs.zama.org/protocol
+- FHEVM Solidity: https://github.com/zama-ai/fhevm
+- Zama Discord: https://discord.com/invite/zama
+- Developer Program: https://www.zama.ai/developer-program

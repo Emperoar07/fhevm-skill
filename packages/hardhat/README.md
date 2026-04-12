@@ -1,110 +1,149 @@
-# FHEVM Hardhat Template
+# Hardhat Package
 
-A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
-FHEVM protocol by Zama.
-
-## Quick Start
-
-For detailed instructions see:
-[FHEVM Hardhat Quick Start Tutorial](https://docs.zama.ai/protocol/solidity-guides/getting-started/quick-start-tutorial)
-
-### Prerequisites
-
-- **Node.js**: Version 20 or higher
-- **npm or yarn/pnpm**: Package manager
-
-### Installation
-
-1. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-2. **Set up environment variables**
-
-   ```bash
-   npx hardhat vars set MNEMONIC
-
-   # Set your Infura API key for network access
-   npx hardhat vars set INFURA_API_KEY
-
-   # Optional: Set Etherscan API key for contract verification
-   npx hardhat vars set ETHERSCAN_API_KEY
-   ```
-
-3. **Compile and test**
-
-   ```bash
-   npm run compile
-   npm run test
-   ```
-
-4. **Deploy to local network**
-
-   ```bash
-   # Start a local FHEVM-ready node
-   npx hardhat node
-   # Deploy to local network
-   npx hardhat deploy --network localhost
-   ```
-
-5. **Deploy to Sepolia Testnet**
-
-   ```bash
-   # Deploy to Sepolia
-   npx hardhat deploy --network sepolia
-   # Verify contract on Etherscan
-   npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
-   ```
-
-6. **Test on Sepolia Testnet**
-
-   ```bash
-   # Once deployed, you can run a simple test on Sepolia.
-   npx hardhat test --network sepolia
-   ```
-
-## 📁 Project Structure
-
-```
-fhevm-hardhat-template/
-├── contracts/           # Smart contract source files
-│   └── FHECounter.sol   # Example FHE counter contract
-├── deploy/              # Deployment scripts
-├── tasks/               # Hardhat custom tasks
-├── test/                # Test files
-├── hardhat.config.ts    # Hardhat configuration
-└── package.json         # Dependencies and scripts
-```
-
-## 📜 Available Scripts
-
-| Script             | Description              |
-| ------------------ | ------------------------ |
-| `npm run compile`  | Compile all contracts    |
-| `npm run test`     | Run all tests            |
-| `npm run coverage` | Generate coverage report |
-| `npm run lint`     | Run linting checks       |
-| `npm run clean`    | Clean build artifacts    |
-
-## 📚 Documentation
-
-- [FHEVM Documentation](https://docs.zama.ai/fhevm)
-- [FHEVM Hardhat Setup Guide](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup)
-- [FHEVM Testing Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat/write_test)
-- [FHEVM Hardhat Plugin](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat)
-
-## 📄 License
-
-This project is licensed under the BSD-3-Clause-Clear License. See the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-- **GitHub Issues**: [Report bugs or request features](https://github.com/zama-ai/fhevm/issues)
-- **Documentation**: [FHEVM Docs](https://docs.zama.ai)
-- **Community**: [Zama Discord](https://discord.gg/zama)
+Solidity contracts and tests for the FHEVM Agent Skill demo. All five contracts were written using only the skill files as guidance. They serve as proof that the skill produces correct, working FHEVM code.
 
 ---
 
-**Built with ❤️ by the Zama team**
+## Contracts
+
+| Contract | What it demonstrates |
+|---|---|
+| `ConfidentialVoting.sol` | Encrypted boolean votes, FHE.select tallying, public reveal after deadline |
+| `SealedBidAuction.sol` | Encrypted bids, highest bid tracking with FHE.select, eaddress for winner |
+| `ConfidentialLeaderboard.sol` | Personal best initialization check, global top score, multi-user scoring |
+| `ConfidentialSalary.sol` | Cold start proof: built from SKILL.md alone, 10 of 10 tests passed first try |
+| `FHECounter.sol` | Base template from Zama showing increment and decrement on encrypted counter |
+
+---
+
+## Running Tests
+
+From the project root:
+
+```bash
+pnpm test
+```
+
+From this package directly:
+
+```bash
+cd packages/hardhat
+pnpm test
+```
+
+Expected output:
+
+```
+  32 passing
+   1 pending
+```
+
+The pending test is `FHECounterSepolia` which only runs on the Sepolia testnet. It is intentionally skipped in local mock mode.
+
+---
+
+## Running a Single Test File
+
+```bash
+cd packages/hardhat
+pnpm test test/ConfidentialVoting.ts
+```
+
+---
+
+## Compiling
+
+```bash
+pnpm compile
+```
+
+Or from the project root:
+
+```bash
+pnpm hardhat:compile
+```
+
+---
+
+## Deploying to Sepolia
+
+Set up your environment variables first:
+
+```bash
+# packages/hardhat/.env
+MNEMONIC="your twelve word mnemonic phrase here"
+SEPOLIA_RPC_URL="https://ethereum-sepolia-rpc.publicnode.com"
+```
+
+Then deploy from the project root:
+
+```bash
+pnpm deploy:sepolia
+```
+
+After deploying, generate the TypeScript ABIs for the frontend:
+
+```bash
+pnpm generate
+```
+
+See Section 11d of [SKILL.md](../../SKILL.md) for the full deployment walkthrough including the error table for common failures.
+
+---
+
+## Project Structure
+
+```
+packages/hardhat/
+  contracts/
+    ConfidentialLeaderboard.sol
+    ConfidentialSalary.sol
+    ConfidentialVoting.sol
+    SealedBidAuction.sol
+    FHECounter.sol
+  test/
+    ConfidentialLeaderboard.ts
+    ConfidentialSalary.ts
+    ConfidentialVoting.ts
+    SealedBidAuction.ts
+    FHECounter.ts
+    FHECounterSepolia.ts
+  deploy/
+    deploy.ts
+  hardhat.config.ts
+  package.json
+  tsconfig.json
+```
+
+---
+
+## Key FHEVM Patterns in These Contracts
+
+**ACL after every mutation.** Every FHE operation produces a new handle. All contracts re-grant `FHE.allowThis` and `FHE.allow` immediately after each `FHE.add`, `FHE.select`, or `FHE.sub` call.
+
+**Owner access requires explicit grant.** `FHE.allowThis` grants access to the contract, not the owner. All contracts include `FHE.allow(handle, owner())` for any value the owner needs to decrypt.
+
+**FHE.select instead of if.** No contract uses `if` on an encrypted condition. All branching goes through `FHE.select(condition, valueIfTrue, valueIfFalse)`.
+
+**Silent clamp instead of revert.** Functions that could fail on an encrypted condition (insufficient balance, overflow) use `FHE.select` to clamp the value to zero rather than reverting.
+
+**FHE.isInitialized for first-write detection.** `ConfidentialLeaderboard` uses `FHE.isInitialized(_personalBest[msg.sender])` to handle the first score submission without a separate tracking variable.
+
+For the full explanation of each pattern see [SKILL.md](../../SKILL.md) and [SKILL-REFERENCE.md](../../SKILL-REFERENCE.md).
+
+---
+
+## Dependencies
+
+| Package | Version | Purpose |
+|---|---|---|
+| `@fhevm/solidity` | 0.9+ | Encrypted types and FHE library |
+| `@fhevm/hardhat-plugin` | 0.4.2 | Test helpers: fhevm object, userDecryptEuint |
+| `@openzeppelin/contracts` | 5.x | Ownable2Step |
+| `hardhat` | 2.x | Test runner and compiler |
+
+---
+
+## License
+
+BSD-3-Clause-Clear
