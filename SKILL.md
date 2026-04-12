@@ -809,6 +809,46 @@ function resolveAuction(
 > Use comments in your contract to document which index is which.
 > ---
 
+### Validated: 3-Handle Public Decryption (GAP-002 closed v1.7.0)
+
+Validated end-to-end on Sepolia via `PublicDecryptionVerifier`
+([0x72B0BBB2](https://sepolia.etherscan.io/address/0x72B0BBB2172FcAAaF01e052C81C8B9638686047D)).
+3+ handles work identically to 1–2 handles — same rules apply.
+
+**Solidity:**
+```solidity
+function revealAll() external onlyOwner {
+    FHE.makePubliclyDecryptable(_valueA);
+    FHE.makePubliclyDecryptable(_valueB);
+    FHE.makePubliclyDecryptable(_valueC);
+}
+
+function verify(uint64 a, uint64 b, uint64 c, bytes calldata decryptionProof) external {
+    bytes32[] memory handles = new bytes32[](3);
+    handles[0] = FHE.toBytes32(_valueA);  // index 0 — must match publicDecrypt order
+    handles[1] = FHE.toBytes32(_valueB);  // index 1
+    handles[2] = FHE.toBytes32(_valueC);  // index 2
+
+    bytes memory cleartexts = abi.encode(a, b, c);  // same order as handles[]
+    FHE.checkSignatures(handles, cleartexts, decryptionProof);
+    revealed = true;
+}
+```
+
+**TypeScript:**
+```typescript
+// After revealAll() is confirmed on-chain:
+const [handleA, handleB, handleC] = await contract.getHandles();
+const results = await fhevm.publicDecrypt([handleA, handleB, handleC]);
+
+// clearValues is a plain object keyed by handle hex string, values are bigint
+const a = BigInt(String(results.clearValues[handleA]));
+const b = BigInt(String(results.clearValues[handleB]));
+const c = BigInt(String(results.clearValues[handleC]));
+
+await contract.verify(a, b, c, results.decryptionProof);
+```
+
 ---
 
 ## 9. Frontend Integration (Relayer SDK)

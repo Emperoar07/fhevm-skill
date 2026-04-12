@@ -20,22 +20,24 @@ Every address links to Sepolia Etherscan for on-chain verification.
 | `SealedBidAuction` | [0x4061C54E999ADf0B4A12111435E1Cf4c317Af079](https://sepolia.etherscan.io/address/0x4061C54E999ADf0B4A12111435E1Cf4c317Af079) | 10643717 | [0xbba678c2...](https://sepolia.etherscan.io/tx/0xbba678c28a05def01e2396fabeb3171717a0f0b5b2a6760e620572105d050de0) |
 | `ConfidentialLeaderboard` | [0x10166D8f3C64B6478Fc1806AAd57802FBF213f0C](https://sepolia.etherscan.io/address/0x10166D8f3C64B6478Fc1806AAd57802FBF213f0C) | 10643747 | [0x8c53142d...](https://sepolia.etherscan.io/tx/0x8c53142d605f9da2b18429589135894c624b4cbcfd07c1b94bcd32f0035b373f) |
 | `ConfidentialSalary` | [0x0D739C65459a2E1F54e4fe56bD0fa5c93633151b](https://sepolia.etherscan.io/address/0x0D739C65459a2E1F54e4fe56bD0fa5c93633151b) | 10643807 | [0x1e29513c...](https://sepolia.etherscan.io/tx/0x1e29513c8c489fb1faeafa1ae7ab973b4cdd83c9039883cb8d46e60ac20c78c9) |
+| `PublicDecryptionVerifier` | [0x72B0BBB2172FcAAaF01e052C81C8B9638686047D](https://sepolia.etherscan.io/address/0x72B0BBB2172FcAAaF01e052C81C8B9638686047D) | — | [0xf339ae2b...](https://sepolia.etherscan.io/tx/0xf339ae2b9303b2aedcebff122b4a56a6613522ee513fdf6cd4d78512db472bc3) |
 
 ---
 
 ## Live Test Results
 
-All 16 Sepolia tests passing across all 6 contracts:
+All 17 Sepolia tests passing across all 7 contracts:
 
 ```
-FHECounterSepolia              1/1  passing
-ConfidentialTokenSepolia       3/3  passing
-ConfidentialVotingSepolia      3/3  passing
-SealedBidAuctionSepolia        3/3  passing
-ConfidentialLeaderboardSepolia 3/3  passing
-ConfidentialSalarySepolia      3/3  passing
+FHECounterSepolia                  1/1  passing
+ConfidentialTokenSepolia           3/3  passing
+ConfidentialVotingSepolia          3/3  passing
+SealedBidAuctionSepolia            3/3  passing
+ConfidentialLeaderboardSepolia     3/3  passing
+ConfidentialSalarySepolia          3/3  passing
+PublicDecryptionVerifierSepolia    1/1  passing  (GAP-002 closure)
 
-Total: 16/16 passing
+Total: 17/17 passing
 ```
 
 ---
@@ -56,6 +58,8 @@ Total: 16/16 passing
 | Encrypted running total | ConfidentialSalary | Yes |
 | Double-submit / double-vote prevention | ConfidentialVoting, ConfidentialSalary | Yes |
 | Multi-user encrypted aggregation | ConfidentialSalary, ConfidentialLeaderboard | Yes |
+| `FHE.makePubliclyDecryptable` + 3-handle `FHE.checkSignatures` | PublicDecryptionVerifier | Yes |
+| `fhevm.publicDecrypt([h1,h2,h3])` — 3-handle public decryption proof | PublicDecryptionVerifier | Yes |
 
 ---
 
@@ -81,6 +85,8 @@ npx hardhat test test/ConfidentialVotingSepolia.ts --network sepolia
 npx hardhat test test/SealedBidAuctionSepolia.ts --network sepolia
 npx hardhat test test/ConfidentialLeaderboardSepolia.ts --network sepolia
 npx hardhat test test/ConfidentialSalarySepolia.ts --network sepolia
+npx hardhat deploy --network sepolia --tags PublicDecryptionVerifier
+npx hardhat test test/PublicDecryptionVerifierSepolia.ts --network sepolia
 ```
 
 Requires a wallet funded with Sepolia ETH on accounts 0, 1, and 2.

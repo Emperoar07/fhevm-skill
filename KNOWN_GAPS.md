@@ -9,22 +9,30 @@ safe patterns over improvising.
 ## Active Gaps
 
 ### GAP-001 — Public decryption TypeScript return type
-**Status:** Unvalidated on live Sepolia  
+**Status:** Resolved in v1.7.0  
 **Description:** The `instance.publicDecrypt(handles)` return type includes `clearValues`,
-`abiEncodedClearValues`, and `decryptionProof`. The exact shape of `clearValues` (Map vs object,
-key format) has not been verified against a live relayer response.  
-**Safe fallback:** Use `abiEncodedClearValues` + `decryptionProof` directly with `FHE.checkSignatures`
-on-chain rather than parsing `clearValues` client-side.  
-**Tracked since:** 2026-04-12
+`abiEncodedClearValues`, and `decryptionProof`. The exact shape of `clearValues` (keyed by
+handle hex string, values are bigint/boolean/string depending on type) is now validated against
+the live Sepolia relayer via `PublicDecryptionVerifier` contract.  
+**Resolution:** `clearValues` is a plain object keyed by handle hex. Use
+`BigInt(String(results.clearValues[handle]))` to extract euint64 values safely.
+Pass `results.decryptionProof` directly to `FHE.checkSignatures` on-chain.  
+**Fixed in:** v1.7.0 — 2026-04-12
 
 ---
 
 ### GAP-002 — `FHE.checkSignatures` with more than 2 handles
-**Status:** Tested only with 1–2 handles  
+**Status:** Resolved in v1.7.0  
 **Description:** The skill documents `checkSignatures` with 1 and 2 handle arrays. Behavior with
-3+ handles and the corresponding `abi.encode` format has not been validated.  
-**Safe fallback:** Split large reveal operations into multiple 2-handle calls if unsure.  
-**Tracked since:** 2026-04-12
+3+ handles and the corresponding `abi.encode` format has now been validated end-to-end on Sepolia
+via the `PublicDecryptionVerifier` contract (deployed at
+`0x72B0BBB2172FcAAaF01e052C81C8B9638686047D`).  
+**Resolution:** 3-handle public decryption works exactly like 1-handle. Key rules:
+- `handles[]` order in `FHE.checkSignatures` must match the order passed to `publicDecrypt()`
+- `cleartexts` must be `abi.encode(a, b, c)` in the same order
+- `FHE.makePubliclyDecryptable` must be called on each handle before `publicDecrypt()`
+- `fhevm.publicDecrypt([handleA, handleB, handleC])` returns `{ clearValues, decryptionProof }`  
+**Fixed in:** v1.7.0 — 2026-04-12
 
 ---
 
@@ -63,6 +71,8 @@ automatically via `_mint`/`_transfer`, but callers with no balance history will 
 
 | Gap ID | Description | Fixed in version |
 |---|---|---|
+| GAP-001 | `publicDecrypt` return type shape — `clearValues` keyed by handle hex, values are bigint | v1.7.0 |
+| GAP-002 | `FHE.checkSignatures` with 3+ handles — validated via `PublicDecryptionVerifier` on Sepolia | v1.7.0 |
 | GAP-005 | ERC7984 `_burn` ACL requirements and `FHE.isInitialized` guard | v1.7.0 |
 | — | `publicDecrypt` was documented as a standalone import | v1.3.0 |
 | — | Owner ACL not mentioned for admin-readable handles | v1.3.0 |
