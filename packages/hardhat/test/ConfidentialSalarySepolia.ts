@@ -3,6 +3,7 @@ import { ethers, fhevm, deployments } from "hardhat";
 import { ConfidentialSalary } from "../types";
 import { expect } from "chai";
 import { FhevmType } from "@fhevm/hardhat-plugin";
+import { encryptWithRetry, decryptWithRetry } from "./helpers/sepoliaRetry";
 
 type Signers = {
   owner: HardhatEthersSigner;
@@ -50,10 +51,7 @@ describe("ConfidentialSalarySepolia", function () {
 
     if (!aliceSubmitted) {
       progress(`Encrypting salary 5000 for alice=${signers.alice.address}...`);
-      const enc = await fhevm
-        .createEncryptedInput(contractAddress, signers.alice.address)
-        .add64(5000n)
-        .encrypt();
+      const enc = await encryptWithRetry(contractAddress, signers.alice.address, i => i.add64(5000n));
 
       progress(`Submitting salary on-chain...`);
       const tx = await contract.connect(signers.alice).submitSalary(enc.handles[0], enc.inputProof);
@@ -68,12 +66,7 @@ describe("ConfidentialSalarySepolia", function () {
     expect(encSalary).to.not.eq(ethers.ZeroHash);
 
     progress(`Decrypting alice salary via relayer...`);
-    const clearSalary = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      encSalary,
-      contractAddress,
-      signers.alice,
-    );
+    const clearSalary = await decryptWithRetry(FhevmType.euint64, encSalary, contractAddress, signers.alice);
     progress(`Alice salary = ${clearSalary}`);
     expect(clearSalary).to.be.gte(5000n);
 
@@ -89,10 +82,7 @@ describe("ConfidentialSalarySepolia", function () {
 
     if (!aliceSubmitted) {
       progress(`Alice submitting salary 5000...`);
-      const enc = await fhevm
-        .createEncryptedInput(contractAddress, signers.alice.address)
-        .add64(5000n)
-        .encrypt();
+      const enc = await encryptWithRetry(contractAddress, signers.alice.address, i => i.add64(5000n));
       const tx = await contract.connect(signers.alice).submitSalary(enc.handles[0], enc.inputProof);
       await tx.wait();
     } else {
@@ -101,10 +91,7 @@ describe("ConfidentialSalarySepolia", function () {
 
     if (!bobSubmitted) {
       progress(`Bob submitting salary 7000...`);
-      const enc = await fhevm
-        .createEncryptedInput(contractAddress, signers.bob.address)
-        .add64(7000n)
-        .encrypt();
+      const enc = await encryptWithRetry(contractAddress, signers.bob.address, i => i.add64(7000n));
       const tx = await contract.connect(signers.bob).submitSalary(enc.handles[0], enc.inputProof);
       await tx.wait();
     } else {
@@ -116,12 +103,7 @@ describe("ConfidentialSalarySepolia", function () {
     expect(encTotal).to.not.eq(ethers.ZeroHash);
 
     progress(`Decrypting aggregate total via relayer...`);
-    const clearTotal = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      encTotal,
-      contractAddress,
-      signers.owner,
-    );
+    const clearTotal = await decryptWithRetry(FhevmType.euint64, encTotal, contractAddress, signers.owner);
     progress(`Aggregate total = ${clearTotal}`);
     expect(clearTotal).to.be.gte(12000n);
 
@@ -136,18 +118,12 @@ describe("ConfidentialSalarySepolia", function () {
     const aliceSubmitted = await contract.hasSubmitted(signers.alice.address);
 
     if (!aliceSubmitted) {
-      const enc = await fhevm
-        .createEncryptedInput(contractAddress, signers.alice.address)
-        .add64(5000n)
-        .encrypt();
+      const enc = await encryptWithRetry(contractAddress, signers.alice.address, i => i.add64(5000n));
       await contract.connect(signers.alice).submitSalary(enc.handles[0], enc.inputProof);
     }
 
     progress(`Attempting second submission from alice — should revert...`);
-    const enc2 = await fhevm
-      .createEncryptedInput(contractAddress, signers.alice.address)
-      .add64(9999n)
-      .encrypt();
+    const enc2 = await encryptWithRetry(contractAddress, signers.alice.address, i => i.add64(9999n));
     await expect(
       contract.connect(signers.alice).submitSalary(enc2.handles[0], enc2.inputProof)
     ).to.be.revertedWith("Already submitted");

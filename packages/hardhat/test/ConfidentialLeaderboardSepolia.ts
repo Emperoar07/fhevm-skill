@@ -3,6 +3,7 @@ import { ethers, fhevm, deployments } from "hardhat";
 import { ConfidentialLeaderboard } from "../types";
 import { expect } from "chai";
 import { FhevmType } from "@fhevm/hardhat-plugin";
+import { encryptWithRetry, decryptWithRetry } from "./helpers/sepoliaRetry";
 
 type Signers = {
   owner: HardhatEthersSigner;
@@ -54,10 +55,7 @@ describe("ConfidentialLeaderboardSepolia", function () {
     this.timeout(10 * 60000);
 
     progress(`Encrypting score 42 for alice=${signers.alice.address}...`);
-    const enc = await fhevm
-      .createEncryptedInput(contractAddress, signers.alice.address)
-      .add64(42n)
-      .encrypt();
+    const enc = await encryptWithRetry(contractAddress, signers.alice.address, i => i.add64(42n));
 
     progress(`Submitting score on-chain...`);
     const tx = await contract.connect(signers.alice).submitScore(enc.handles[0], enc.inputProof);
@@ -68,12 +66,7 @@ describe("ConfidentialLeaderboardSepolia", function () {
     expect(pbHandle).to.not.eq(ethers.ZeroHash);
 
     progress(`Decrypting personal best via relayer...`);
-    const pb = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      pbHandle,
-      contractAddress,
-      signers.alice,
-    );
+    const pb = await decryptWithRetry(FhevmType.euint64, pbHandle, contractAddress, signers.alice);
     progress(`Alice personal best = ${pb}`);
     expect(pb).to.be.gte(42n);
 
@@ -85,37 +78,21 @@ describe("ConfidentialLeaderboardSepolia", function () {
     this.timeout(15 * 60000);
 
     progress(`Submitting score 50 for alice...`);
-    const enc1 = await fhevm
-      .createEncryptedInput(contractAddress, signers.alice.address)
-      .add64(50n)
-      .encrypt();
+    const enc1 = await encryptWithRetry(contractAddress, signers.alice.address, i => i.add64(50n));
     const tx1 = await contract.connect(signers.alice).submitScore(enc1.handles[0], enc1.inputProof);
     await tx1.wait();
 
     progress(`Decrypting alice personal best after score 50...`);
-    const pb1 = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      await contract.getPersonalBest(signers.alice.address),
-      contractAddress,
-      signers.alice,
-    );
+    const pb1 = await decryptWithRetry(FhevmType.euint64, await contract.getPersonalBest(signers.alice.address), contractAddress, signers.alice);
     progress(`Alice personal best = ${pb1}`);
 
     progress(`Submitting higher score 200 for alice...`);
-    const enc2 = await fhevm
-      .createEncryptedInput(contractAddress, signers.alice.address)
-      .add64(200n)
-      .encrypt();
+    const enc2 = await encryptWithRetry(contractAddress, signers.alice.address, i => i.add64(200n));
     const tx2 = await contract.connect(signers.alice).submitScore(enc2.handles[0], enc2.inputProof);
     await tx2.wait();
 
     progress(`Decrypting alice personal best after score 200...`);
-    const pb2 = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      await contract.getPersonalBest(signers.alice.address),
-      contractAddress,
-      signers.alice,
-    );
+    const pb2 = await decryptWithRetry(FhevmType.euint64, await contract.getPersonalBest(signers.alice.address), contractAddress, signers.alice);
     progress(`Alice personal best after 200 = ${pb2}`);
     expect(pb2).to.be.gte(pb1);
     expect(pb2).to.be.gte(200n);
@@ -128,38 +105,22 @@ describe("ConfidentialLeaderboardSepolia", function () {
     this.timeout(20 * 60000);
 
     progress(`Alice submits score 100...`);
-    const encAlice = await fhevm
-      .createEncryptedInput(contractAddress, signers.alice.address)
-      .add64(100n)
-      .encrypt();
+    const encAlice = await encryptWithRetry(contractAddress, signers.alice.address, i => i.add64(100n));
     const tx1 = await contract.connect(signers.alice).submitScore(encAlice.handles[0], encAlice.inputProof);
     await tx1.wait();
 
     progress(`Bob submits score 300...`);
-    const encBob = await fhevm
-      .createEncryptedInput(contractAddress, signers.bob.address)
-      .add64(300n)
-      .encrypt();
+    const encBob = await encryptWithRetry(contractAddress, signers.bob.address, i => i.add64(300n));
     const tx2 = await contract.connect(signers.bob).submitScore(encBob.handles[0], encBob.inputProof);
     await tx2.wait();
 
     progress(`Decrypting alice personal best...`);
-    const alicePB = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      await contract.getPersonalBest(signers.alice.address),
-      contractAddress,
-      signers.alice,
-    );
+    const alicePB = await decryptWithRetry(FhevmType.euint64, await contract.getPersonalBest(signers.alice.address), contractAddress, signers.alice);
     progress(`Alice personal best = ${alicePB}`);
     expect(alicePB).to.be.gte(100n);
 
     progress(`Decrypting bob personal best...`);
-    const bobPB = await fhevm.userDecryptEuint(
-      FhevmType.euint64,
-      await contract.getPersonalBest(signers.bob.address),
-      contractAddress,
-      signers.bob,
-    );
+    const bobPB = await decryptWithRetry(FhevmType.euint64, await contract.getPersonalBest(signers.bob.address), contractAddress, signers.bob);
     progress(`Bob personal best = ${bobPB}`);
     expect(bobPB).to.be.gte(300n);
 

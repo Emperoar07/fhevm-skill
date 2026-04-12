@@ -51,11 +51,15 @@ Supporting files:
   ConfidentialVoting         7 passing
   FHECounter                 2 passing
   SealedBidAuction           5 passing
-  FHECounterSepolia          1 pending  (Sepolia only — skipped locally)
-  ConfidentialTokenSepolia   3 pending  (Sepolia only — skipped locally)
+  FHECounterSepolia                1 pending  (Sepolia only — skipped locally)
+  ConfidentialTokenSepolia         3 pending  (Sepolia only — skipped locally)
+  ConfidentialVotingSepolia        3 pending  (Sepolia only — skipped locally)
+  SealedBidAuctionSepolia          3 pending  (Sepolia only — skipped locally)
+  ConfidentialLeaderboardSepolia   3 pending  (Sepolia only — skipped locally)
+  ConfidentialSalarySepolia        3 pending  (Sepolia only — skipped locally)
 
   32 passing
-   4 pending
+  16 pending
 ```
 
 ### Live Sepolia testnet (16/16)
@@ -96,13 +100,12 @@ Six contracts covering the full range of FHEVM patterns:
 
 | Contract | Patterns demonstrated | Sepolia validated | Sepolia address |
 |---|---|---|---|
+| `FHECounter` | Base template from Zama, increment and decrement encrypted counter | Yes | [0x23f51eAa](https://sepolia.etherscan.io/address/0x23f51eAa3274c4051D9B0c28143778f8DfAa10CE) |
 | `ConfidentialToken` | Encrypted balances, confidential transfer, approve, burn with ACL | Yes | [0xdf92f544](https://sepolia.etherscan.io/address/0xdf92f54401406571DF0D3538ebb8eFE39Eb45512) |
 | `ConfidentialVoting` | Encrypted bool inputs, FHE.select for vote tallying, owner reveals after deadline | Yes | [0x022DAb10](https://sepolia.etherscan.io/address/0x022DAb103EDb3B4815677C83a20E9e80AE9ea926) |
 | `SealedBidAuction` | Encrypted uint64 bids, FHE.select for highest bid tracking, eaddress for winner | Yes | [0x4061C54E](https://sepolia.etherscan.io/address/0x4061C54E999ADf0B4A12111435E1Cf4c317Af079) |
 | `ConfidentialLeaderboard` | Personal best with FHE.isInitialized, global top score, multi-user aggregation | Yes | [0x10166D8f](https://sepolia.etherscan.io/address/0x10166D8f3C64B6478Fc1806AAd57802FBF213f0C) |
-
 | `ConfidentialSalary` | Per-user encrypted values, encrypted running total, owner-only aggregate read | Yes | [0x0D739C65](https://sepolia.etherscan.io/address/0x0D739C65459a2E1F54e4fe56bD0fa5c93633151b) |
-| `FHECounter` | Base template from Zama, increment and decrement encrypted counter | Yes | [0x23f51eAa](https://sepolia.etherscan.io/address/0x23f51eAa3274c4051D9B0c28143778f8DfAa10CE) |
 
 ---
 
