@@ -209,29 +209,51 @@ fhevm-skill/
 
 ## How to Use the Skill
 
-Full guide: **[USAGE.md](USAGE.md)**
+Point any AI coding agent at the skill files, then describe what you want to build. The agent reads the files and produces correct FHEVM code — no digging through docs required.
 
-The short version: open any AI coding agent, tell it to read the relevant skill files, then describe what you want to build.
+### Claude Code
 
+```bash
+# From your project root
+claude
 ```
-Read SKILL.md and SKILL-TEMPLATES.md in this repo.
-
-Build a confidential salary survey contract where employees submit encrypted
-salaries and the owner reads an encrypted aggregate total. Include tests.
+Then paste this prompt:
+```
+Read SKILL.md, SKILL-REFERENCE.md, SKILL-TEMPLATES.md, and SKILL-TESTING.md
+from this repo. Build a confidential voting contract where users cast encrypted
+yes/no votes and the owner reveals the tally after a deadline. Include full tests.
 ```
 
-The agent reads the skill files and produces a working contract with correct ACL grants, proper FHE.select usage, and a full test suite. No corrections needed.
+### Cursor / Windsurf
 
-Which files to load by task:
+Add the skill files to context (@ mention or drag into chat), then prompt:
+```
+Read SKILL.md and SKILL-TEMPLATES.md.
+Build a sealed-bid auction where bids are encrypted and the highest bidder
+is tracked using FHE.select. Include Hardhat tests.
+```
+
+### Which files to load
 
 | Task | Load these files |
 |---|---|
-| New contract from scratch | SKILL.md and SKILL-TEMPLATES.md |
-| Debugging or reviewing a contract | SKILL.md and SKILL-REFERENCE.md |
+| New contract from scratch | SKILL.md + SKILL-TEMPLATES.md |
+| Debugging or reviewing a contract | SKILL.md + SKILL-REFERENCE.md |
 | Writing tests | SKILL-TESTING.md |
-| Full workflow from contract to deployment | All four skill files |
+| Full workflow — contract to deployment | All four skill files |
 
-See [USAGE.md](USAGE.md) for tested example prompts, agent-specific instructions for Claude Code, Cursor, and Windsurf, a list of every mistake the skill prevents, and how to verify the agent output.
+### What the skill prevents
+
+Without the skill, agents consistently produce code that:
+- Missing `FHE.allowThis` — contract can't reuse its own handles next tx
+- Uses `if (encryptedValue > 0)` — plaintext conditionals on encrypted types don't compile
+- Forgets `FHE.allow(handle, user)` — user can't decrypt their own data
+- Wrong handle order in `FHE.checkSignatures` — proof reverts silently
+- Calls `FHE.decrypt()` in a view function — async decryption doesn't work that way
+
+The skill covers all of these explicitly with wrong/correct examples.
+
+Full guide with more prompts and agent-specific tips: **[USAGE.md](USAGE.md)**
 
 ---
 
