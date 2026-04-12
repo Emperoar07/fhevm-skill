@@ -1,0 +1,132 @@
+name: SKILL.md CI — Validate & Auto-Evolve
+
+on:
+  push:
+    paths:
+      - 'SKILL.md'
+      - 'packages/hardhat/contracts/**'
+      - 'packages/hardhat/test/**'
+  pull_request:
+    paths:
+      - 'SKILL.md'
+      - 'packages/hardhat/contracts/**'
+      - 'packages/hardhat/test/**'
+
+jobs:
+  validate-skill:
+    name: Compile + Test (mock mode)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compile contracts
+        id: compile
+        run: pnpm compile
+
+      - name: Run tests
+        id: test
+        run: pnpm test 2>&1 | tee test-output.txt
+
+      - name: Parse test results
+        id: parse
+        if: always()
+        run: |
+          PASSING=$(grep -oP '\d+(?= passing)' test-output.txt || echo "0")
+          FAILING=$(grep -oP '\d+(?= failing)' test-output.txt || echo "0")
+          PENDING=$(grep -oP '\d+(?= pending)' test-output.txt || echo "0")
+          echo "passing=$PASSING" >> $GITHUB_OUTPUT
+          echo "failing=$FAILING" >> $GITHUB_OUTPUT
+          echo "pending=$PENDING" >> $GITHUB_OUTPUT
+          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Passing: $PASSING" >> $GITHUB_STEP_SUMMARY
+          echo "- Failing: $FAILING" >> $GITHUB_STEP_SUMMARY
+          echo "- Pending: $PENDING" >> $GITHUB_STEP_SUMMARY
+
+      - name: Auto-update KNOWN_GAPS.md on failure
+        if: steps.test.outcome == 'failure'
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          FAILURES=$(grep "passing\|failing" test-output.txt | tail -1)
+          FAILED_TESTS=$(grep "^\s*[0-9]*)" test-output.txt || grep "passing\|failing" test-output.txt)
+
+          cat >> KNOWN_GAPS.md << EOF
+
+          ---
+
+          ### GAP-AUTO-${DATE} — CI detected test failure
+
+          **Status:** Confirmed failure
+          **Detected:** ${DATE} by GitHub Actions (commit ${{ github.sha }})
+          **Branch:** ${{ github.ref_name }}
+          **Summary:** $FAILURES
+          **Failed tests:**
+          \`\`\`
+          $FAILED_TESTS
+          \`\`\`
+          **Action required:** Review test output, fix SKILL.md or contracts, bump version in SKILL.md metadata.
+          **Full logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+
+          git config user.name "skill-bot"
+          git config user.email "skill-bot@users.noreply.github.com"
+          git add KNOWN_GAPS.md
+          git commit -m "auto: log CI failure to KNOWN_GAPS.md [skip ci]"
+          git push
+
+      - name: Auto-update CHANGELOG.md on success
+        if: steps.test.outcome == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          PASSING=${{ steps.parse.outputs.passing }}
+          PENDING=${{ steps.parse.outputs.pending }}
+
+          # Extract current version from SKILL.md
+          VERSION=$(grep '^\| \*\*Version\*\*' ../SKILL.md | grep -oP '\d+\.\d+\.\d+' || echo "unknown")
+
+          # Prepend new entry to CHANGELOG.md
+          ENTRY="## [CI-VALIDATED] — ${DATE}\n\n**Version:** ${VERSION}\n**Result:** ${PASSING} passing, ${PENDING} pending, 0 failing\n**Commit:** ${{ github.sha }}\n**Triggered by:** push to main\n\n---\n\n"
+
+          # Insert after the first line (title)
+          sed -i "3s/^/${ENTRY}/" CHANGELOG.md
+
+          git config user.name "skill-bot"
+          git config user.email "skill-bot@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "auto: log passing CI to CHANGELOG.md [skip ci]"
+          git push
+
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const passing = '${{ steps.parse.outputs.passing }}';
+            const failing = '${{ steps.parse.outputs.failing }}';
+            const pending = '${{ steps.parse.outputs.pending }}';
+            const status  = failing === '0' ? '✅ All tests passing' : `❌ ${failing} test(s) failing`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## SKILL.md Validation\n\n${status}\n\n| Passing | Failing | Pending |\n|---|---|---|\n| ${passing} | ${failing} | ${pending} |\n\n[View full logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`
+            });

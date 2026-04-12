@@ -1,0 +1,81 @@
+name: Skill Gap Report
+description: Report a pattern the SKILL.md gets wrong or is missing
+title: "[Gap] "
+labels: ["skill-gap"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for improving the skill! Fill in as much as you can — even a partial report helps.
+
+  - type: input
+    id: version
+    attributes:
+      label: Skill version
+      description: Check the metadata table at the top of SKILL.md
+      placeholder: e.g. 1.3.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: AI agent used
+      options:
+        - Claude Code
+        - Cursor
+        - Windsurf
+        - GitHub Copilot
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: prompt
+    attributes:
+      label: Prompt given to agent
+      description: The exact natural language prompt you used
+      placeholder: "Write me a confidential voting contract..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: failure_type
+    attributes:
+      label: Type of failure
+      options:
+        - Compile error
+        - Test failure
+        - Wrong behaviour (compiles but incorrect)
+        - Missing pattern (skill doesn't cover this case)
+        - Outdated API (skill references old version)
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error or failure detail
+      description: Paste the error message or test failure output
+      render: shell
+
+  - type: textarea
+    id: generated_code
+    attributes:
+      label: Code the agent generated
+      description: Paste the relevant generated Solidity or TypeScript
+      render: solidity
+
+  - type: input
+    id: section
+    attributes:
+      label: SKILL.md section to update
+      placeholder: "e.g. Section 6 — ACL, or 'new section needed'"
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix (optional)
+      description: If you know what the correct pattern should be, describe it here

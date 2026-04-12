@@ -1,0 +1,56 @@
+name: SKILL.md Auto-Evolve from Issues
+
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  log-gap-to-known-gaps:
+    name: Log skill-gap issue to KNOWN_GAPS.md
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'skill-gap')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Append to KNOWN_GAPS.md
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          ISSUE_NUM="${{ github.event.issue.number }}"
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ISSUE_URL="${{ github.event.issue.html_url }}"
+          AUTHOR="${{ github.event.issue.user.login }}"
+
+          cat >> KNOWN_GAPS.md << EOF
+
+          ---
+
+          ### GAP-ISSUE-${ISSUE_NUM} — ${ISSUE_TITLE}
+
+          **Status:** Reported by community — needs validation
+          **Reported by:** @${AUTHOR}
+          **Date:** ${DATE}
+          **GitHub Issue:** ${ISSUE_URL}
+          **Action required:** Reproduce, fix SKILL.md, close issue with reference to fix commit.
+          **Tracked since:** ${DATE}
+          EOF
+
+          git config user.name "skill-bot"
+          git config user.email "skill-bot@users.noreply.github.com"
+          git add KNOWN_GAPS.md
+          git commit -m "auto: log issue #${ISSUE_NUM} to KNOWN_GAPS.md [skip ci]"
+          git push
+
+      - name: Comment on issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Thanks for the report! This gap has been automatically logged to [KNOWN_GAPS.md](../blob/main/KNOWN_GAPS.md).\n\nA maintainer will reproduce the failure, fix SKILL.md, and reference this issue in the CHANGELOG when resolved.\n\nIf you have a fix, feel free to open a PR — the CI will validate it automatically.`
+            });
