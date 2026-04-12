@@ -58,7 +58,7 @@ Supporting files:
    4 pending
 ```
 
-### Live Sepolia testnet (7/7)
+### Live Sepolia testnet (10/10)
 
 ```
   FHECounterSepolia          1 passing  (81s)
@@ -70,11 +70,15 @@ Supporting files:
     cast YES vote and verify hasVoted flag
     two YES votes and one NO vote — tally is correct
     double vote is rejected
+  SealedBidAuctionSepolia    3 passing  (3m)
+    alice places encrypted bid and decrypts her own bid
+    multiple bidders — highest bid tracked via FHE.select
+    non-owner cannot settle auction
 ```
 
 All core FHEVM patterns validated end-to-end on Sepolia against the live Zama relayer:
 encrypted input generation, FHE operations on-chain, ACL enforcement, user decryption via relayer,
-confidential burn, FHE.select with ebool inputs, multi-user encrypted aggregation, and double-vote prevention.
+confidential burn, FHE.select with ebool and euint64, eaddress tracking, multi-user aggregation, and access control.
 
 ---
 
@@ -86,7 +90,7 @@ Six contracts covering the full range of FHEVM patterns:
 |---|---|---|
 | `ConfidentialToken` | Encrypted balances, confidential transfer, approve, burn with ACL | Yes |
 | `ConfidentialVoting` | Encrypted bool inputs, FHE.select for vote tallying, owner reveals after deadline | Yes |
-| `SealedBidAuction` | Encrypted uint64 bids, FHE.select for highest bid tracking, eaddress for winner | No |
+| `SealedBidAuction` | Encrypted uint64 bids, FHE.select for highest bid tracking, eaddress for winner | Yes |
 | `ConfidentialLeaderboard` | Personal best with FHE.isInitialized, global top score, multi-user aggregation | No |
 | `ConfidentialSalary` | Per-user encrypted values, encrypted running total, owner-only aggregate read | No |
 | `FHECounter` | Base template from Zama, increment and decrement encrypted counter | Yes |
