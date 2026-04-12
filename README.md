@@ -33,6 +33,7 @@ Supporting files:
 
 | File | Purpose |
 |---|---|
+| [USAGE.md](USAGE.md) | Step-by-step guide for using the skill with any AI agent. Example prompts, agent-specific instructions, and what mistakes the skill prevents. |
 | [VERSIONS.md](VERSIONS.md) | Tracks exact package versions the skill was validated against. Updated weekly by CI. |
 | [CHANGELOG.md](CHANGELOG.md) | Full version history from v1.1.0 to v1.6.0. |
 | [KNOWN_GAPS.md](KNOWN_GAPS.md) | Open gaps and patterns still under validation. |
@@ -122,6 +123,7 @@ fhevm-skill-demo/
   SKILL-REFERENCE.md            API reference
   SKILL-TEMPLATES.md            Contract templates
   SKILL-TESTING.md              Test guide
+  USAGE.md                      How to use the skill with any agent
   VERSIONS.md                   Package version tracker
   CHANGELOG.md                  Version history
   KNOWN_GAPS.md                 Open gaps
@@ -149,23 +151,29 @@ fhevm-skill-demo/
 
 ## How to Use the Skill
 
-Open any AI coding agent and give it a prompt like:
+Full guide: **[USAGE.md](USAGE.md)**
+
+The short version: open any AI coding agent, tell it to read the relevant skill files, then describe what you want to build.
 
 ```
-Read SKILL.md and SKILL-REFERENCE.md from this repo, then build me a
-confidential prediction market contract on Ethereum where users submit
-encrypted predictions and the owner reveals the outcome after a deadline.
-Include tests.
+Read SKILL.md and SKILL-TEMPLATES.md in this repo.
+
+Build a confidential salary survey contract where employees submit encrypted
+salaries and the owner reads an encrypted aggregate total. Include tests.
 ```
 
-The agent will produce a working contract with correct ACL grants, proper FHE.select usage, and a full test suite. No corrections needed.
+The agent reads the skill files and produces a working contract with correct ACL grants, proper FHE.select usage, and a full test suite. No corrections needed.
 
-For faster agent loading on specific tasks:
+Which files to load by task:
 
-- Writing a new contract from scratch: load `SKILL.md` and `SKILL-TEMPLATES.md`
-- Debugging a contract: load `SKILL.md` and `SKILL-REFERENCE.md`
-- Writing tests: load `SKILL-TESTING.md`
-- All of the above: load all four files
+| Task | Load these files |
+|---|---|
+| New contract from scratch | SKILL.md and SKILL-TEMPLATES.md |
+| Debugging or reviewing a contract | SKILL.md and SKILL-REFERENCE.md |
+| Writing tests | SKILL-TESTING.md |
+| Full workflow from contract to deployment | All four skill files |
+
+See [USAGE.md](USAGE.md) for tested example prompts, agent-specific instructions for Claude Code, Cursor, and Windsurf, a list of every mistake the skill prevents, and how to verify the agent output.
 
 ---
 

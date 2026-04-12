@@ -16,12 +16,15 @@ jobs:
   validate-skill:
     name: Compile + Test (mock mode)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup pnpm
@@ -99,8 +102,8 @@ jobs:
           PASSING=${{ steps.parse.outputs.passing }}
           PENDING=${{ steps.parse.outputs.pending }}
 
-          # Extract current version from SKILL.md
-          VERSION=$(grep '^\| \*\*Version\*\*' ../SKILL.md | grep -oP '\d+\.\d+\.\d+' || echo "unknown")
+          # Extract current version from SKILL.md (workflow runs from repo root)
+          VERSION=$(grep '^\| \*\*Version\*\*' SKILL.md | grep -oP '\d+\.\d+\.\d+' || echo "unknown")
 
           # Prepend new entry to CHANGELOG.md
           ENTRY="## [CI-VALIDATED] — ${DATE}\n\n**Version:** ${VERSION}\n**Result:** ${PASSING} passing, ${PENDING} pending, 0 failing\n**Commit:** ${{ github.sha }}\n**Triggered by:** push to main\n\n---\n\n"
