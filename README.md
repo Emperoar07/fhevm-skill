@@ -86,14 +86,14 @@ confidential burn, FHE.select with ebool and euint64, eaddress tracking, multi-u
 
 Six contracts covering the full range of FHEVM patterns:
 
-| Contract | Patterns demonstrated | Sepolia validated |
-|---|---|---|
-| `ConfidentialToken` | Encrypted balances, confidential transfer, approve, burn with ACL | Yes |
-| `ConfidentialVoting` | Encrypted bool inputs, FHE.select for vote tallying, owner reveals after deadline | Yes |
-| `SealedBidAuction` | Encrypted uint64 bids, FHE.select for highest bid tracking, eaddress for winner | Yes |
-| `ConfidentialLeaderboard` | Personal best with FHE.isInitialized, global top score, multi-user aggregation | No |
-| `ConfidentialSalary` | Per-user encrypted values, encrypted running total, owner-only aggregate read | No |
-| `FHECounter` | Base template from Zama, increment and decrement encrypted counter | Yes |
+| Contract | Patterns demonstrated | Sepolia validated | Sepolia address |
+|---|---|---|---|
+| `ConfidentialToken` | Encrypted balances, confidential transfer, approve, burn with ACL | Yes | [0xdf92f544](https://sepolia.etherscan.io/address/0xdf92f54401406571DF0D3538ebb8eFE39Eb45512) |
+| `ConfidentialVoting` | Encrypted bool inputs, FHE.select for vote tallying, owner reveals after deadline | Yes | [0x022DAb10](https://sepolia.etherscan.io/address/0x022DAb103EDb3B4815677C83a20E9e80AE9ea926) |
+| `SealedBidAuction` | Encrypted uint64 bids, FHE.select for highest bid tracking, eaddress for winner | Yes | [0x4061C54E](https://sepolia.etherscan.io/address/0x4061C54E999ADf0B4A12111435E1Cf4c317Af079) |
+| `ConfidentialLeaderboard` | Personal best with FHE.isInitialized, global top score, multi-user aggregation | Yes | [0x10166D8f](https://sepolia.etherscan.io/address/0x10166D8f3C64B6478Fc1806AAd57802FBF213f0C) |
+| `ConfidentialSalary` | Per-user encrypted values, encrypted running total, owner-only aggregate read | No | — |
+| `FHECounter` | Base template from Zama, increment and decrement encrypted counter | Yes | [0x23f51eAa](https://sepolia.etherscan.io/address/0x23f51eAa3274c4051D9B0c28143778f8DfAa10CE) |
 
 ---
 
