@@ -14,9 +14,11 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 1.5.0 |
+| **Version** | 1.7.0 |
 | **Scope** | Solidity API + TypeScript SDK API |
-| **Covers** | `@fhevm/solidity` v0.9/v0.10, `@zama-fhe/relayer-sdk` v0.3 |
+| **Covers** | `@fhevm/solidity` v0.9/v0.10, `@zama-fhe/relayer-sdk` v0.4.x, `@fhevm/hardhat-plugin` v0.4.x |
+| **Package versions** | See [VERSIONS.md](VERSIONS.md) for exact pinned versions validated against live Sepolia |
+| **Last validated** | 2026-04-13 — all patterns confirmed against live Zama Sepolia relayer |
 
 ---
 

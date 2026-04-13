@@ -105,7 +105,8 @@ Maintainer reviews the diff, updates the relevant SKILL file(s)
     - 14b. [Deploying to Sepolia](#11d-deploying-to-sepolia)
 15. [Anti-Patterns and Gotchas](#12-anti-patterns-and-gotchas)
 16. [Quick Reference Cheatsheet](#13-quick-reference-cheatsheet)
-17. [Glossary](#14-glossary)
+17. [Troubleshooting Index](#14-troubleshooting-index)
+18. [Glossary](#15-glossary)
 
 ---
 
@@ -1855,7 +1856,54 @@ const plain   = result[handle];
 
 ---
 
-## 14. Glossary
+## 14. Troubleshooting Index
+
+Quick lookup for common failure modes. Match the error message or symptom to the fix.
+
+### Contract / Compile Errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `Operator not compatible with type euint64` | Using `+`, `-`, `>`, `==` on encrypted types | Replace with `FHE.add`, `FHE.sub`, `FHE.gt`, `FHE.eq` |
+| `if (encValue)` / `if (encBool)` | Plaintext conditional on encrypted type | Use `FHE.select(condition, trueVal, falseVal)` |
+| `FHE.decrypt()` does not exist | No synchronous decrypt in FHEVM | Use off-chain `userDecryptEuint` or `publicDecrypt` |
+| `Member not found in euint64` | Wrong type — e.g. calling euint32 op on euint64 | Match types exactly; cast with `FHE.asEuint64()` if needed |
+| Import path not found | Wrong import path | Use `@fhevm/solidity/lib/FHE.sol` and `@fhevm/solidity/config/ZamaConfig.sol` |
+
+### Runtime / Transaction Errors
+
+| Error / Symptom | Cause | Fix |
+|---|---|---|
+| `User is not authorized` | Missing `FHE.allow(handle, userAddress)` | Add `FHE.allow` grant after every mutation |
+| `ACL: contract not authorized` | Missing `FHE.allowThis(handle)` | Add `FHE.allowThis` after every mutation |
+| `FHE.checkSignatures` reverts with no message | Wrong handle order in proof | Match `handles[]` order exactly to `publicDecrypt()` call order |
+| Handle returns zero / uninitialized | `FHE.isInitialized` returns false | Check with `FHE.isInitialized(handle)` before use; initialize in constructor |
+| Encrypted value silently wraps | `FHE.sub` underflow on euint — wraps like uint256 | Guard with `FHE.isInitialized` check; validate inputs off-chain |
+| `HCU limit exceeded` | Too many FHE ops in one transaction | Split into multiple txs; check HCU table in Section 4b |
+| Old handle value after update | ACL grant on stale handle reference | Always re-grant `FHE.allowThis` + `FHE.allow` after `FHE.add/sub/select` |
+
+### Test / SDK Errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `RelayerV2FetchError: fetch failed` | Transient Zama relayer connection drop | Retry — use `encryptWithRetry` / `decryptWithRetry` helpers |
+| `Cannot call publicDecrypt from a 'hardhat node' server` | Called `fhevm.publicDecrypt` inside `hardhat node` process | Run in test process only, not in a running node |
+| `Impossible to fetch public key: wrong relayer url` | Relayer URL changed or unreachable | Check Zama Discord `#dev-support`; retry after a few minutes |
+| `TypeError: Do not know how to serialize a BigInt` | `JSON.stringify` on bigint directly | Use replacer: `JSON.stringify(val, (_k, v) => typeof v === "bigint" ? v.toString() : v)` |
+| `decryptedValue` is always 0 | Handle not allowed to the user | Add `FHE.allow(handle, userAddress)` in the contract |
+| Test passes locally but fails on Sepolia | Mock mode vs live relayer behavior differs | Check ACL grants — mock is lenient, live relayer enforces strictly |
+
+### Deployment Errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `missing revert data` on deploy | Contract constructor reverts | Check `ZamaEthereumConfig` is inherited; check constructor args |
+| `insufficient funds` | Deployer wallet empty | Fund wallet from Sepolia faucet |
+| `nonce too low` | Pending tx or wrong account | Wait for pending txs; check `MNEMONIC` hardhat var points to correct wallet |
+
+---
+
+## 15. Glossary
 
 | Term | Definition |
 |---|---|
