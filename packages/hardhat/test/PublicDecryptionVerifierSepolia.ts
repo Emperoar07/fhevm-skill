@@ -51,9 +51,11 @@ describe("PublicDecryptionVerifierSepolia", function () {
     // If already verified from a prior run, we can still re-verify — the contract allows it
     progress(`Encrypting values 100, 200, 300 for owner=${signers.owner.address}...`);
 
-    const encA = await encryptWithRetry(contractAddress, signers.owner.address, i => i.add64(100n));
-    const encB = await encryptWithRetry(contractAddress, signers.owner.address, i => i.add64(200n));
-    const encC = await encryptWithRetry(contractAddress, signers.owner.address, i => i.add64(300n));
+    const [encA, encB, encC] = await Promise.all([
+      encryptWithRetry(contractAddress, signers.owner.address, i => i.add64(100n)),
+      encryptWithRetry(contractAddress, signers.owner.address, i => i.add64(200n)),
+      encryptWithRetry(contractAddress, signers.owner.address, i => i.add64(300n)),
+    ]);
 
     progress(`Storing encrypted values on-chain...`);
     const storeTx = await contract.connect(signers.owner).storeValues(
