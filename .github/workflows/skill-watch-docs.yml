@@ -2,9 +2,8 @@ name: SKILL.md Docs Change Watcher
 
 on:
   schedule:
-    # Every Thursday at 08:00 UTC (staggered from dep watcher)
-    - cron: "0 8 * * 4"
-  workflow_dispatch: # allow manual trigger from GitHub UI
+    - cron: "0 8 * * 4" # Every Thursday at 08:00 UTC
+  workflow_dispatch:
 
 jobs:
   watch-zama-docs:
@@ -33,11 +32,8 @@ jobs:
           CHANGED=false
           ISSUE_DETAILS=""
 
-          # Create snapshots directory if it doesn't exist
           mkdir -p .github/doc-snapshots
 
-          # List of docs pages to watch
-          # Format: "label|url"
           PAGES=(
             "fhevm-solidity-api|https://docs.zama.org/protocol/reference/functions"
             "relayer-sdk-api|https://docs.zama.org/protocol/frontend/relayersdk"
@@ -52,56 +48,80 @@ jobs:
             SNAPSHOT_FILE=".github/doc-snapshots/${LABEL}.sha256"
 
             echo "Fetching: $URL"
-
-            # Fetch the page content (follow redirects, ignore SSL errors gracefully)
             CONTENT=$(curl -s -L --max-time 30 --fail "$URL" 2>/dev/null || echo "FETCH_FAILED")
-
             if [ "$CONTENT" = "FETCH_FAILED" ]; then
-              echo "  ⚠ Could not fetch $URL — skipping"
+              echo "  Could not fetch $URL - skipping"
               continue
             fi
 
-            # Hash the content (strip dynamic timestamps/nonces to reduce false positives)
-            # Remove common dynamic elements: dates, nonces, cache-busting params
-            CLEANED=$(echo "$CONTENT" | \
-              sed 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9:\.Z-]*//g' | \
-              sed 's/nonce="[^"]*"//g' | \
-              sed 's/data-cache-key="[^"]*"//g')
+            CLEANED=$(echo "$CONTENT" | sed 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9:\.Z-]*//g' | sed 's/nonce="[^"]*"//g' | sed 's/data-cache-key="[^"]*"//g')
             NEW_HASH=$(echo "$CLEANED" | sha256sum | cut -d' ' -f1)
-
-            echo "  New hash: $NEW_HASH"
+            SHORT_HASH="${NEW_HASH:0:12}..."
 
             if [ -f "$SNAPSHOT_FILE" ]; then
               OLD_HASH=$(cat "$SNAPSHOT_FILE")
-              echo "  Old hash: $OLD_HASH"
-
               if [ "$NEW_HASH" != "$OLD_HASH" ]; then
-                echo "  🔔 CHANGE DETECTED on $LABEL"
                 CHANGED=true
                 ISSUE_DETAILS="${ISSUE_DETAILS}- **${LABEL}**: content changed ([view page](${URL}))\n"
-
-                # Update snapshot
                 echo "$NEW_HASH" > "$SNAPSHOT_FILE"
-
-                # Update VERSIONS.md docs snapshot table
-                sed -i "s|docs.zama.org/protocol.*${LABEL}.*|REPLACED|" ../../VERSIONS.md || true
-              else
-                echo "  ✓ No change"
               fi
             else
-              echo "  📸 First snapshot — saving"
               echo "$NEW_HASH" > "$SNAPSHOT_FILE"
             fi
 
-            # Update last-checked date in VERSIONS.md
-            sed -i "s/| \`docs.zama.org.*${LABEL}\`.*| .* |/| \`docs.zama.org\/${LABEL}\` | ${DATE} | ${NEW_HASH:0:12}... |/" ../../VERSIONS.md || true
+            python3 - "$LABEL" "$DATE" "$SHORT_HASH" << 'PYEOF'
+          import sys
+
+          label, date, short_hash = sys.argv[1:4]
+          source = f"`docs.zama.org/{label}`"
+
+          with open("VERSIONS.md", "r", encoding="utf-8") as f:
+              lines = f.readlines()
+
+          header_idx = None
+          for i, line in enumerate(lines):
+              if line.strip() == "## Docs Snapshot Hash":
+                  header_idx = i
+                  break
+
+          if header_idx is None:
+              sys.exit(0)
+
+          table_start = None
+          for i in range(header_idx + 1, len(lines)):
+              if lines[i].startswith("| Source |"):
+                  table_start = i
+                  break
+
+          if table_start is None:
+              sys.exit(0)
+
+          table_end = table_start + 2
+          while table_end < len(lines) and lines[table_end].startswith("|"):
+              table_end += 1
+
+          target_row = f"| {source} | {date} | `{short_hash}` |\n"
+          found = False
+          for i in range(table_start + 2, table_end):
+              if lines[i].startswith(f"| {source} |"):
+                  lines[i] = target_row
+                  found = True
+                  break
+
+          if not found:
+              lines.insert(table_end, target_row)
+
+          with open("VERSIONS.md", "w", encoding="utf-8") as f:
+              f.writelines(lines)
+          PYEOF
           done
 
-          echo "changed=$CHANGED" >> $GITHUB_OUTPUT
-          echo "issue_details<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$ISSUE_DETAILS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}
+          echo "changed=${CHANGED}" >> $GITHUB_OUTPUT
+          if [ "${CHANGED}" = "true" ]; then
+            echo "issue_details<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$ISSUE_DETAILS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
 
       - name: Commit updated snapshots and VERSIONS.md
         if: always()
@@ -140,9 +160,9 @@ jobs:
 
             | Changed page | Likely skill file |
             |---|---|
-            | fhevm-solidity-api | SKILL-REFERENCE.md (sections 2–5) |
+            | fhevm-solidity-api | SKILL-REFERENCE.md (sections 2-5) |
             | relayer-sdk-api | SKILL-REFERENCE.md (section 7), SKILL.md (section 9) |
-            | fhevm-changelog | All skill files — review changelog carefully |
+            | fhevm-changelog | All skill files - review changelog carefully |
             | acl-reference | SKILL-REFERENCE.md (section 3), SKILL.md (section 6) |
             | hardhat-plugin | SKILL-TESTING.md |
 
@@ -151,7 +171,7 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '[Gap] Zama documentation change detected — skill review needed',
-              body: body,
-              labels: ['skill-gap', 'docs-change'],
+              title: "[Gap] Zama documentation change detected - skill review needed",
+              body,
+              labels: ["skill-gap", "docs-change"],
             });

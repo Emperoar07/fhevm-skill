@@ -1,20 +1,30 @@
-name: SKILL.md CI — Validate & Auto-Evolve
+name: SKILL.md CI - Validate and Auto-Evolve
 
 on:
   push:
     paths:
-      - 'SKILL.md'
-      - 'packages/hardhat/contracts/**'
-      - 'packages/hardhat/test/**'
+      - "SKILL.md"
+      - "SKILL-REFERENCE.md"
+      - "SKILL-TEMPLATES.md"
+      - "SKILL-TESTING.md"
+      - "packages/hardhat/**"
+      - "packages/fhevm-sdk/**"
+      - "packages/nextjs/**"
+      - ".github/workflows/skill-*.yml"
   pull_request:
     paths:
-      - 'SKILL.md'
-      - 'packages/hardhat/contracts/**'
-      - 'packages/hardhat/test/**'
+      - "SKILL.md"
+      - "SKILL-REFERENCE.md"
+      - "SKILL-TEMPLATES.md"
+      - "SKILL-TESTING.md"
+      - "packages/hardhat/**"
+      - "packages/fhevm-sdk/**"
+      - "packages/nextjs/**"
+      - ".github/workflows/skill-*.yml"
 
 jobs:
   validate-skill:
-    name: Compile + Test (mock mode)
+    name: Validate contracts, SDK, and frontend types
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -35,8 +45,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
@@ -45,47 +55,67 @@ jobs:
         id: compile
         run: pnpm compile
 
-      - name: Run tests
-        id: test
-        run: pnpm test 2>&1 | tee test-output.txt
+      - name: Run hardhat tests
+        id: hardhat_test
+        run: pnpm test 2>&1 | tee hardhat-test-output.txt
 
-      - name: Parse test results
+      - name: Run SDK tests
+        id: sdk_test
+        run: pnpm sdk:test 2>&1 | tee sdk-test-output.txt
+
+      - name: Run frontend type checks
+        id: frontend_types
+        run: pnpm next:check-types 2>&1 | tee frontend-typecheck-output.txt
+
+      - name: Parse hardhat test results
         id: parse
         if: always()
         run: |
-          PASSING=$(grep -oP '\d+(?= passing)' test-output.txt || echo "0")
-          FAILING=$(grep -oP '\d+(?= failing)' test-output.txt || echo "0")
-          PENDING=$(grep -oP '\d+(?= pending)' test-output.txt || echo "0")
+          PASSING=$(grep -oP '\d+(?= passing)' hardhat-test-output.txt || echo "0")
+          FAILING=$(grep -oP '\d+(?= failing)' hardhat-test-output.txt || echo "0")
+          PENDING=$(grep -oP '\d+(?= pending)' hardhat-test-output.txt || echo "0")
           echo "passing=$PASSING" >> $GITHUB_OUTPUT
           echo "failing=$FAILING" >> $GITHUB_OUTPUT
           echo "pending=$PENDING" >> $GITHUB_OUTPUT
-          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "### Hardhat Test Results" >> $GITHUB_STEP_SUMMARY
           echo "- Passing: $PASSING" >> $GITHUB_STEP_SUMMARY
           echo "- Failing: $FAILING" >> $GITHUB_STEP_SUMMARY
           echo "- Pending: $PENDING" >> $GITHUB_STEP_SUMMARY
+          echo "- SDK tests: ${{ steps.sdk_test.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend type checks: ${{ steps.frontend_types.outcome }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Auto-update KNOWN_GAPS.md on failure
-        if: steps.test.outcome == 'failure'
+        if: failure()
         run: |
           DATE=$(date +%Y-%m-%d)
-          FAILURES=$(grep "passing\|failing" test-output.txt | tail -1)
-          FAILED_TESTS=$(grep "^\s*[0-9]*)" test-output.txt || grep "passing\|failing" test-output.txt)
+          FAIL_SUMMARY="hardhat=${{ steps.hardhat_test.outcome }}, sdk=${{ steps.sdk_test.outcome }}, frontend_types=${{ steps.frontend_types.outcome }}"
+          FAILED_LOGS=""
+
+          if [ -f hardhat-test-output.txt ]; then
+            FAILED_LOGS="${FAILED_LOGS}\n--- hardhat-test-output.txt ---\n$(tail -n 40 hardhat-test-output.txt)\n"
+          fi
+          if [ -f sdk-test-output.txt ]; then
+            FAILED_LOGS="${FAILED_LOGS}\n--- sdk-test-output.txt ---\n$(tail -n 40 sdk-test-output.txt)\n"
+          fi
+          if [ -f frontend-typecheck-output.txt ]; then
+            FAILED_LOGS="${FAILED_LOGS}\n--- frontend-typecheck-output.txt ---\n$(tail -n 40 frontend-typecheck-output.txt)\n"
+          fi
 
           cat >> KNOWN_GAPS.md << EOF
 
           ---
 
-          ### GAP-AUTO-${DATE} — CI detected test failure
+          ### GAP-AUTO-${DATE} - CI detected validation failure
 
           **Status:** Confirmed failure
           **Detected:** ${DATE} by GitHub Actions (commit ${{ github.sha }})
           **Branch:** ${{ github.ref_name }}
-          **Summary:** $FAILURES
-          **Failed tests:**
+          **Summary:** ${FAIL_SUMMARY}
+          **Recent logs:**
           \`\`\`
-          $FAILED_TESTS
+          ${FAILED_LOGS}
           \`\`\`
-          **Action required:** Review test output, fix SKILL.md or contracts, bump version in SKILL.md metadata.
+          **Action required:** Review failing outputs, fix code or skill docs, and re-run validation.
           **Full logs:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EOF
 
@@ -96,21 +126,18 @@ jobs:
           git push
 
       - name: Auto-update CHANGELOG.md on success
-        if: steps.test.outcome == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           DATE=$(date +%Y-%m-%d)
           PASSING=${{ steps.parse.outputs.passing }}
           PENDING=${{ steps.parse.outputs.pending }}
-
-          # Extract current version from SKILL.md (first match only)
           VERSION=$(grep '^\| \*\*Version\*\*' SKILL.md | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "unknown")
 
-          # Build the entry as a file to avoid sed special-character issues
           cat > /tmp/ci_entry.md << EOF
-          ## [CI-VALIDATED] — ${DATE}
+          ## [CI-VALIDATED] - ${DATE}
 
           **Version:** ${VERSION}
-          **Result:** ${PASSING} passing, ${PENDING} pending, 0 failing
+          **Result:** hardhat=${PASSING} passing, ${PENDING} pending, 0 failing; sdk=passing; frontend types=passing
           **Commit:** ${{ github.sha }}
           **Triggered by:** push to main
 
@@ -118,20 +145,18 @@ jobs:
 
           EOF
 
-          # Prepend entry after line 1 (the title) using Python for safe multiline insert
           python3 - << 'PYEOF'
-          with open('/tmp/ci_entry.md') as f:
+          with open('/tmp/ci_entry.md', encoding='utf-8') as f:
               entry = f.read()
-          with open('CHANGELOG.md') as f:
+          with open('CHANGELOG.md', encoding='utf-8') as f:
               lines = f.readlines()
-          # Insert after first non-empty line (the title)
           insert_at = 1
           for i, line in enumerate(lines):
               if line.strip():
                   insert_at = i + 1
                   break
           lines.insert(insert_at, entry)
-          with open('CHANGELOG.md', 'w') as f:
+          with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
               f.writelines(lines)
           PYEOF
 
@@ -149,11 +174,15 @@ jobs:
             const passing = '${{ steps.parse.outputs.passing }}';
             const failing = '${{ steps.parse.outputs.failing }}';
             const pending = '${{ steps.parse.outputs.pending }}';
-            const status  = failing === '0' ? '✅ All tests passing' : `❌ ${failing} test(s) failing`;
+            const sdk = '${{ steps.sdk_test.outcome }}';
+            const frontend = '${{ steps.frontend_types.outcome }}';
+            const status = failing === '0' && sdk === 'success' && frontend === 'success'
+              ? 'All validations passing'
+              : 'One or more validations failed';
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## SKILL.md Validation\n\n${status}\n\n| Passing | Failing | Pending |\n|---|---|---|\n| ${passing} | ${failing} | ${pending} |\n\n[View full logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`
+              body: `## SKILL.md Validation\n\n${status}\n\n| Hardhat Passing | Hardhat Failing | Hardhat Pending | SDK | Frontend Types |\n|---|---|---|---|---|\n| ${passing} | ${failing} | ${pending} | ${sdk} | ${frontend} |\n\n[View full logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`
             });

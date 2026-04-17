@@ -2,9 +2,8 @@ name: SKILL.md Dependency Watcher
 
 on:
   schedule:
-    # Every Monday at 08:00 UTC
-    - cron: "0 8 * * 1"
-  workflow_dispatch: # allow manual trigger from GitHub UI
+    - cron: "0 8 * * 1" # Every Monday at 08:00 UTC
+  workflow_dispatch:
 
 jobs:
   check-zama-packages:
@@ -30,7 +29,6 @@ jobs:
         run: |
           set -e
 
-          # Packages to watch — add new ones here
           PACKAGES=(
             "@fhevm/solidity"
             "@zama-fhe/relayer-sdk"
@@ -39,60 +37,59 @@ jobs:
           )
 
           DATE=$(date +%Y-%m-%d)
-          CHANGED_PACKAGES=""
-          ISSUE_BODY="## Dependency Version Change Detected\n\nThe weekly dependency watcher found new versions of Zama packages.\nThe skill files may need updating to reflect API changes.\n\n**Date:** ${DATE}\n\n### Changed packages\n\n"
+          CHANGED=false
+          ISSUE_BODY="## Dependency Version Change Detected\n\nThe weekly dependency watcher found new versions of Zama packages.\nThe skill files may need updating to reflect API changes.\n\n**Date:** ${DATE}\n\n### Changed packages\n\n| Package | Skill validated against | Latest on npm |\n|---|---|---|\n"
 
           for PKG in "${PACKAGES[@]}"; do
             echo "Checking $PKG..."
             LATEST=$(npm view "$PKG" version 2>/dev/null || echo "not-found")
-
             if [ "$LATEST" = "not-found" ]; then
-              echo "  ⚠ Could not fetch version for $PKG"
+              echo "  Could not fetch version for $PKG"
               continue
             fi
 
-            echo "  Latest: $LATEST"
-
-            # Extract the "Skill validated against" version from VERSIONS.md
-            # Looks for the package name in the table and reads column 2
-            PINNED=$(grep "^\| \`${PKG}\`" ../../VERSIONS.md 2>/dev/null \
-              | awk -F'|' '{gsub(/ /,"",$3); print $3}' \
-              | head -1)
-
-            echo "  Pinned: $PINNED"
-
+            PINNED=$(grep "^\| \`${PKG}\`" VERSIONS.md 2>/dev/null | awk -F'|' '{gsub(/ /,"",$3); print $3}' | head -1)
             if [ -z "$PINNED" ]; then
-              echo "  ⚠ Could not find $PKG in VERSIONS.md — skipping"
+              echo "  Could not find $PKG in VERSIONS.md - skipping"
               continue
             fi
 
-            # Normalise: strip leading 0. or ^ or ~ from pinned version for comparison
-            PINNED_CLEAN=$(echo "$PINNED" | sed 's/^[^0-9]*//')
-
+            PINNED_CLEAN=$(echo "$PINNED" | tr -d '\`' | sed 's/^[^0-9]*//')
+            STATUS="Up to date"
             if [ "$LATEST" != "$PINNED_CLEAN" ]; then
-              echo "  🔔 VERSION CHANGE: $PINNED_CLEAN → $LATEST"
-              CHANGED_PACKAGES="${CHANGED_PACKAGES}${PKG}"
+              CHANGED=true
+              STATUS="Pending check"
               ISSUE_BODY="${ISSUE_BODY}| \`${PKG}\` | \`${PINNED_CLEAN}\` | \`${LATEST}\` |\n"
-
-              # Update VERSIONS.md: set "Latest on npm" column and status
-              sed -i "s/| \`${PKG}\`\(.*\)| .*| .*| .*|/| \`${PKG}\`\1| ${LATEST} | Pending check | ${DATE} |/" ../../VERSIONS.md || true
-            else
-              echo "  ✓ Up to date ($LATEST)"
-              # Update "Last checked" date even if no change
-              sed -i "s/| \`${PKG}\`\(.*\)| Up to date | .* |/| \`${PKG}\`\1| Up to date | ${DATE} |/" ../../VERSIONS.md || true
             fi
+
+            python3 - "$PKG" "$LATEST" "$STATUS" "$DATE" << 'PYEOF'
+          import sys
+
+          pkg, latest, status, date = sys.argv[1:5]
+          with open("VERSIONS.md", "r", encoding="utf-8") as f:
+              lines = f.readlines()
+
+          for idx, line in enumerate(lines):
+              if line.startswith(f"| `{pkg}` |"):
+                  parts = line.rstrip("\n").split("|")
+                  if len(parts) >= 7:
+                      parts[3] = f" `{latest}` "
+                      parts[4] = f" {status} "
+                      parts[5] = f" {date} "
+                      lines[idx] = "|".join(parts) + "\n"
+                  break
+
+          with open("VERSIONS.md", "w", encoding="utf-8") as f:
+              f.writelines(lines)
+          PYEOF
           done
 
-          if [ -n "$CHANGED_PACKAGES" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
+          echo "changed=${CHANGED}" >> $GITHUB_OUTPUT
+          if [ "${CHANGED}" = "true" ]; then
             echo "issue_body<<EOF" >> $GITHUB_OUTPUT
             echo -e "${ISSUE_BODY}" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "✅ All packages are up to date"
           fi
-        working-directory: fhevm-skill-demo/.github/workflows
 
       - name: Commit updated VERSIONS.md
         if: always()
@@ -102,7 +99,6 @@ jobs:
           git add VERSIONS.md
           git diff --staged --quiet || git commit -m "auto: update VERSIONS.md version check [skip ci]"
           git push
-        working-directory: ${{ github.workspace }}
 
       - name: Open GitHub Issue for changed packages
         if: steps.version_check.outputs.changed == 'true'
@@ -114,7 +110,7 @@ jobs:
             ### What to do
 
             1. Review the changelogs for each updated package
-            2. Update \`VERSIONS.md\` — set "Skill validated against" to the new version
+            2. Update \`VERSIONS.md\` - set "Skill validated against" to the new version
             3. Check each SKILL file for patterns referencing the old API
             4. Update affected patterns, add new ones for new features
             5. Run \`pnpm test\` to verify 32/32 still pass
@@ -130,7 +126,7 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '[Gap] Zama package version change detected — skill review needed',
-              body: body,
-              labels: ['skill-gap', 'dependency-update'],
+              title: "[Gap] Zama package version change detected - skill review needed",
+              body,
+              labels: ["skill-gap", "dependency-update"],
             });
