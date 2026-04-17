@@ -127,7 +127,7 @@ pnpm install
 pnpm test
 ```
 
-Expected output: `32 passing, 4 pending`
+Expected output: `32 passing, 17 pending`
 
 ### Live Sepolia testnet
 
@@ -190,7 +190,7 @@ fhevm-skill/
   packages/
     hardhat/
       contracts/                Six confidential contracts
-      test/                     Eight test files (32 mock + 4 Sepolia)
+      test/                     Hardhat + Sepolia validation suites (32 mock + 17 Sepolia tests)
       deploy/                   Hardhat deploy scripts
     nextjs/                     Scaffold-ETH frontend
     fhevm-sdk/                  FHEVM SDK package

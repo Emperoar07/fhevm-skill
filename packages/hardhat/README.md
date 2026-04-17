@@ -35,10 +35,10 @@ Expected output:
 
 ```
   32 passing
-   1 pending
+  17 pending
 ```
 
-The pending test is `FHECounterSepolia` which only runs on the Sepolia testnet. It is intentionally skipped in local mock mode.
+Pending tests are Sepolia-only suites and are intentionally skipped in local mock mode.
 
 ---
 
