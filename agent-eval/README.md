@@ -75,3 +75,4 @@ This creates a clean bridge between the written skill and observed agent perform
 A completed sample score sheet using the current repo as the reference implementation lives at:
 
 - `agent-eval/results/EVAL-001-confidential-voting-golden.md`
+- `agent-eval/results/EVAL-005-public-decryption-golden.md`
