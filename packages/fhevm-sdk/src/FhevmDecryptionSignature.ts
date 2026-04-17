@@ -130,9 +130,9 @@ export class FhevmDecryptionSignature {
     }
     for (let i = 0; i < (s as any).contractAddresses.length; ++i) {
       if (typeof (s as any).contractAddresses[i] !== "string") return false;
-      if (!((s as any).contractAddresses[i] as string).startsWith("0x")) return false;
+      if (!ethers.isAddress((s as any).contractAddresses[i] as string)) return false;
     }
-    if (!("userAddress" in s && typeof (s as any).userAddress === "string" && (s as any).userAddress.startsWith("0x"))) {
+    if (!("userAddress" in s && typeof (s as any).userAddress === "string" && ethers.isAddress((s as any).userAddress))) {
       return false;
     }
     if (!("eip712" in s && typeof (s as any).eip712 === "object" && (s as any).eip712 !== null)) {
