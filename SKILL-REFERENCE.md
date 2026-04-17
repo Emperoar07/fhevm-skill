@@ -35,7 +35,7 @@
 | `euint64` | 64 | full arithmetic + bitwise + comparisons |
 | `euint128` | 128 | full arithmetic + bitwise + comparisons |
 | `euint160` / `eaddress` | 160 | `eq`, `ne`, `select` only — use `eaddress` alias for addresses |
-| `euint256` | 256 | bitwise/logical only — **NO arithmetic** (`add`/`sub`/`mul`/`div` not supported) |
+| `euint256` | 256 | bitwise/logical only - **NO arithmetic** (`add`/`sub`/`mul`/`div` not supported); locally validated for `and`, `or`, `xor`, `not`, `eq`, `ne`, `select` |
 
 ### External Input Types (Function Parameters)
 
@@ -463,3 +463,4 @@ const inputProof = encrypted.inputProof; // bytes calldata proof for all params
 ---
 
 *Part of the FHEVM Skill File System. See also: [SKILL.md](SKILL.md) (master), [SKILL-TEMPLATES.md](SKILL-TEMPLATES.md) (templates), [SKILL-TESTING.md](SKILL-TESTING.md) (testing).*
+

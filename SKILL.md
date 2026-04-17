@@ -8,11 +8,11 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 1.7.0 |
-| **Last updated** | 2026-04-12 |
-| **Last tested against** | `@fhevm/solidity` v0.9/v0.10, `@zama-fhe/relayer-sdk` v0.3, `@fhevm/hardhat-plugin` v0.4.2 |
+| **Version** | 1.8.0 |
+| **Last updated** | 2026-04-17 |
+| **Last tested against** | `@fhevm/solidity` v0.11.1, `@zama-fhe/relayer-sdk` v0.4.1, `@fhevm/hardhat-plugin` v0.4.2 |
 | **Package versions** | [VERSIONS.md](VERSIONS.md) — auto-updated weekly by CI |
-| **Test result** | 32/32 passing (local mock), 1 pending (Sepolia) |
+| **Test result** | 34 passing (local mock), 17 pending (Sepolia) |
 | **Changelog** | [CHANGELOG.md](CHANGELOG.md) |
 | **Report a gap** | [FEEDBACK.md](FEEDBACK.md) |
 | **Known open gaps** | [KNOWN_GAPS.md](KNOWN_GAPS.md) |
@@ -198,7 +198,7 @@ contract MyConfidentialContract is ZamaEthereumConfig {
 | `euint64` | 64 | Full arithmetic + bitwise + comparisons |
 | `euint128` | 128 | Full arithmetic + bitwise + comparisons |
 | `euint160` / `eaddress` | 160 | Only: `eq`, `ne`, `select`; use `eaddress` alias for encrypted addresses |
-| `euint256` | 256 | Bitwise/logical only — NO arithmetic (add/sub/mul/div/rem not supported) |
+| `euint256` | 256 | Bitwise/logical only - NO arithmetic (add/sub/mul/div/rem not supported); locally validated for `and`, `or`, `xor`, `not`, `eq`, `ne`, `select` |
 
 **External input types** (for function parameters receiving user-submitted ciphertexts):
 
@@ -1758,16 +1758,19 @@ ACL grants use events consumed by coprocessors. In case of a chain re-org, a gra
 // Use persistent FHE.allow() only for long-lived balances/results
 ```
 
-### ❌ euint256 Arithmetic
+### euint256 Arithmetic
 
 ```solidity
-// WRONG — euint256 does not support arithmetic
+// WRONG - euint256 does not support arithmetic
 euint256 sum = FHE.add(a256, b256); // COMPILE ERROR
 
 // euint256 supports: and, or, xor, not, eq, ne, select only
 euint256 xored = FHE.xor(a256, b256); // OK
 ```
 
+Validated in this repo by:
+- `packages/hardhat/contracts/Euint256OpsProof.sol`
+- `packages/hardhat/test/Euint256OpsProof.ts`
 ---
 
 ## 13. Quick Reference Cheatsheet

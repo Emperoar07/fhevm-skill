@@ -18,6 +18,9 @@ This skill solves that. It is a set of structured reference files an agent loads
 
 **Cold start proof:** The `ConfidentialSalary` contract was built by giving an agent only this prompt and pointing it at `SKILL.md`. All 10 tests passed on the first attempt with no corrections.
 
+
+**Agent evaluation pack:** The benchmark prompts, rubric, and score-sheet template live in [agent-eval/README.md](agent-eval/README.md) so the skill can be measured against repeatable real-agent tasks, not just described.
+
 ---
 
 ## Skill File System
@@ -40,6 +43,7 @@ Supporting files:
 | [CHANGELOG.md](CHANGELOG.md) | Full version history from v1.1.0 to v1.7.0. |
 | [KNOWN_GAPS.md](KNOWN_GAPS.md) | Open gaps and patterns still under validation. |
 | [FEEDBACK.md](FEEDBACK.md) | How to report a gap or suggest an improvement. |
+| [agent-eval/README.md](agent-eval/README.md) | Benchmark pack for measuring real agent performance against canonical FHEVM prompts. |
 
 ---
 
@@ -59,11 +63,10 @@ Supporting files:
   SealedBidAuctionSepolia              3 pending  (Sepolia only — skipped locally)
   ConfidentialLeaderboardSepolia       3 pending  (Sepolia only — skipped locally)
   ConfidentialSalarySepolia            3 pending  (Sepolia only — skipped locally)
-  PublicDecryptionVerifierSepolia      1 pending  (Sepolia only — skipped locally)
+  PublicDecryptionVerifierSepolia      1 pending  (Sepolia only - skipped locally)
 
-  32 passing
+  34 passing
   17 pending
-```
 
 ### Live Sepolia testnet (17/17)
 
@@ -279,3 +282,4 @@ BSD-3-Clause-Clear. See [LICENSE](LICENSE).
 - FHEVM Solidity: https://github.com/zama-ai/fhevm
 - Zama Discord: https://discord.com/invite/zama
 - Developer Program: https://www.zama.ai/developer-program
+
