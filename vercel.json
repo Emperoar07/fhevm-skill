@@ -1,6 +1,5 @@
 {
   "installCommand": "pnpm install --no-frozen-lockfile",
   "buildCommand": "pnpm --filter site build",
-  "outputDirectory": "packages/nextjs/.next",
-  "framework": "nextjs"
+  "outputDirectory": "packages/nextjs/.next"
 }
