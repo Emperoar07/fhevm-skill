@@ -1,6 +1,15 @@
 # SKILL.md Changelog
 ## [CI-VALIDATED] - 2026-04-17
 
+**Version:** 1.8.0
+**Result:** hardhat=34 passing, 17 pending, 0 failing; sdk=passing; frontend types=passing
+**Commit:** 42a191d9484b26ae450b3e060066c6a54760198b
+**Triggered by:** push to main
+
+---
+
+## [CI-VALIDATED] - 2026-04-17
+
 **Version:** 1.7.0
 **Result:** hardhat=32 passing, 17 pending, 0 failing; sdk=passing; frontend types=passing
 **Commit:** c07a1ddd041f1d413675d7d8b0df433a13ded658
