@@ -6,6 +6,8 @@ A production-ready AI coding skill that enables agents like Claude Code, Cursor,
 
 Point any AI agent at the skill files and it can go from a plain English prompt to a working, tested, deployable FHEVM contract without guessing at APIs or making common mistakes.
 
+**Live demo:** [fhevm-skill.vercel.app](https://fhevm-skill.vercel.app) — FHE Counter running on Sepolia (connect MetaMask to interact)
+
 ---
 
 ## What This Is
