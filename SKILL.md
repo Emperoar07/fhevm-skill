@@ -8,11 +8,11 @@
 
 | Field | Value |
 |---|---|
-| **Version** | 1.8.0 |
-| **Last updated** | 2026-04-17 |
+| **Version** | 1.8.1 |
+| **Last updated** | 2026-04-18 |
 | **Last tested against** | `@fhevm/solidity` v0.11.1, `@zama-fhe/relayer-sdk` v0.4.1, `@fhevm/hardhat-plugin` v0.4.2 |
 | **Package versions** | [VERSIONS.md](VERSIONS.md) — auto-updated weekly by CI |
-| **Test result** | 34 passing (local mock), 17 pending (Sepolia) |
+| **Test result** | 37 passing (local mock), 17 pending (Sepolia) |
 | **Changelog** | [CHANGELOG.md](CHANGELOG.md) |
 | **Report a gap** | [FEEDBACK.md](FEEDBACK.md) |
 | **Known open gaps** | [KNOWN_GAPS.md](KNOWN_GAPS.md) |
@@ -493,6 +493,25 @@ FHE.allowThis(_balance);        // contract can reuse in future txs
 FHE.allow(_balance, msg.sender); // user can decrypt their own balance
 ```
 
+### ACL Decision Rule for Durable vs Transient Access
+
+Use `FHE.allowTransient` only when the access is needed inside the same transaction, such as
+passing an encrypted handle to another contract during the current call tree.
+
+Use persistent `FHE.allow` when the ciphertext must still be usable after the current transaction,
+including:
+
+- user decryption in a later step
+- delayed reads from view functions
+- settlement or claim flows
+- admin review or owner initiated reveal flows
+- any retry tolerant or high value workflow
+
+**Validated boundary:** `packages/hardhat/contracts/AclTransientBoundaryProof.sol` and
+`packages/hardhat/test/AclTransientBoundaryProof.ts` prove in local mock mode that transient access
+is visible in the creating transaction but should not be treated as durable access in later
+transactions.
+
 ### Token Transfer ACL Pattern
 
 ```solidity
@@ -559,6 +578,9 @@ When calling an external contract with an encrypted value, use `allowTransient`:
 FHE.allowTransient(encryptedValue, address(externalContract));
 externalContract.process(encryptedValue);
 ```
+
+This is the right pattern for same transaction handoff. Do not use it as a substitute for
+persistent user or admin access that must survive into later transactions.
 
 ### Validating Caller Has Access (Access-Gated Functions)
 
@@ -1751,12 +1773,22 @@ function setSecret(externalEuint64 enc, bytes calldata proof) external {
 
 ### ❌ Re-org Handling Neglect
 
-ACL grants use events consumed by coprocessors. In case of a chain re-org, a grant emitted in a re-orged block could be lost. For critical access grants:
+ACL grants use events consumed by coprocessors. In case of a chain re-org, a grant emitted in a
+re-orged block could be lost. The safe contract authoring rule is to distinguish transient access
+from durable access correctly:
 
 ```solidity
-// Consider using allowTransient for intermediate computation values
-// Use persistent FHE.allow() only for long-lived balances/results
+// Use allowTransient only for same-transaction intermediate handoff
+FHE.allowTransient(tempValue, address(externalContract));
+
+// Use persistent allow for balances, claims, delayed decryptions, tallies, or admin reads
+FHE.allow(resultHandle, user);
+FHE.allow(resultHandle, owner);
 ```
+
+Local boundary proof exists in `AclTransientBoundaryProof`, but true network re-org simulation is
+still treated as an advanced caution. For high stakes or multi-step flows, prefer conservative
+persistent ACL grants over minimal transient access.
 
 ### euint256 Arithmetic
 

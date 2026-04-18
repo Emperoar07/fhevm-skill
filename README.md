@@ -40,11 +40,26 @@ Supporting material:
 | [FEEDBACK.md](FEEDBACK.md) | How to report a missing pattern or incorrect output |
 | [agent-eval/README.md](agent-eval/README.md) | Benchmark pack for measuring real agent performance |
 
+## Validation Posture
+
+The repository is intentionally explicit about confidence boundaries.
+
+Most core FHEVM workflows in this skill are validated through local mock tests, live Sepolia tests, or benchmark backed reference implementations. Where a pattern is still narrower than full production proof, the repo documents the safe fallback instead of guessing.
+
+The main remaining advanced caution is re org aware ACL behavior in multi step or high value flows. The current skill guidance is:
+
+1. Use `FHE.allowTransient` only for same transaction intermediate access.
+2. Use persistent `FHE.allow` for any ciphertext that must survive retries, delayed reads, settlement, admin review, or later transactions.
+3. In high stakes flows, prefer the conservative persistent ACL pattern over minimal transient access.
+
+This is now partially supported by a local boundary proof in `AclTransientBoundaryProof`, which shows transient access inside the creating transaction and non durable access in later transactions. The remaining gap is limited to true network re org simulation, and is documented in [KNOWN_GAPS.md](KNOWN_GAPS.md) as an advanced validation note rather than a correctness blocker for the core skill.
+
 ## Test Results
 
 ### Local mock mode
 
 ```text
+  AclTransientBoundaryProof   3 passing
   ConfidentialLeaderboard    6 passing
   ConfidentialSalary        10 passing
   ConfidentialVoting         7 passing
@@ -59,7 +74,7 @@ Supporting material:
   ConfidentialSalarySepolia            3 pending  (Sepolia only, skipped locally)
   PublicDecryptionVerifierSepolia      1 pending  (Sepolia only, skipped locally)
 
-  34 passing
+  37 passing
   17 pending
 ```
 
@@ -118,7 +133,7 @@ pnpm install
 pnpm test
 ```
 
-Expected output: `34 passing, 17 pending`
+Expected output: `37 passing, 17 pending`
 
 ### Live Sepolia testnet
 

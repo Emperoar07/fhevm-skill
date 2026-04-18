@@ -8,11 +8,15 @@ AI agents reading this file should treat these areas with extra caution and pref
 ## Active Gaps
 
 ### GAP-003 - Re-org handling in high-stakes contracts
-**Status:** Documented but not tested  
-**Description:** The skill mentions re-org risk for ACL grants (Section 6). The recommended pattern
-of using `allowTransient` for intermediate values is documented but no test covers the re-org
-scenario.  
-**Safe fallback:** Use persistent `FHE.allow` for any handle that must survive across blocks.  
+**Status:** Partially validated, network re-org simulation still unproven  
+**Description:** The skill now has a local boundary proof for ACL lifetime via
+`packages/hardhat/contracts/AclTransientBoundaryProof.sol` and
+`packages/hardhat/test/AclTransientBoundaryProof.ts`.
+That proof validates the narrower rule that `FHE.allowTransient` is suitable for same-transaction
+handoff, but should not be treated as durable access in later transactions. What remains unproven
+is a true chain re-org simulation against live network behavior.  
+**Safe fallback:** Use persistent `FHE.allow` for any handle that must survive across blocks,
+retries, delayed reads, settlement, or admin review.  
 **Tracked since:** 2026-04-12
 
 ---

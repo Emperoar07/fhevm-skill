@@ -1,4 +1,13 @@
 # SKILL.md Changelog
+## [LOCAL-VALIDATED] - 2026-04-18
+
+**Version:** 1.8.1
+**Result:** hardhat=37 passing, 17 pending, 0 failing
+**Commit:** local workspace
+**Triggered by:** GAP-003 tightening pass with ACL boundary proof
+
+---
+
 ## [CI-VALIDATED] - 2026-04-17
 
 **Version:** 1.8.0
