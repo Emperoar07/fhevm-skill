@@ -31,7 +31,7 @@ Used by `skill-watch-docs.yml` to detect documentation changes.
 |---|---|---|
 | `docs.zama.org/fhevm-solidity-api` | 2026-04-17 | `pending-first-run` |
 | `docs.zama.org/relayer-sdk-api` | 2026-04-17 | `pending-first-run` |
-| `docs.zama.org/fhevm-changelog` | 2026-04-23 | `cbe22b9f05dd...` |
+| `docs.zama.org/fhevm-changelog` | 2026-04-30 | `16d5a9716473...` |
 | `docs.zama.org/acl-reference` | 2026-04-17 | `pending-first-run` |
 | `docs.zama.org/hardhat-plugin` | 2026-04-17 | `pending-first-run` |
 
